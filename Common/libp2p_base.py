@@ -4,7 +4,7 @@ import trio
 import multiaddr
 import json
 import Crypto.PublicKey.RSA as RSA
-from libp2p_config import TProtocol
+from libp2p.typing import TProtocol
 from libp2p.peer.id import ID
 import libp2p.crypto.ed25519 as ed25519
 from libp2p.peer.peerinfo import info_from_p2p_addr
@@ -22,9 +22,11 @@ from libp2p.transport.upgrader import TransportUpgrader
 from libp2p.host.host_interface import IHost
 from typing import Dict
 
+import types
+import logging
 
 class Libp2pBase:
-    def __init__(self, ip: str, port: str, secret: str) -> None:
+    def __init__(self, address: Dict[str, str], secret: str) -> None:
         # TODO: check this procedure to creat host
         # Deserialize the private key and create RSA key pair
         private_key_data = base64.b64decode(secret)
@@ -52,16 +54,16 @@ class Libp2pBase:
         swarm = Swarm(self.peer_id, peer_store, upgrader, transport)
 
         self.host: IHost = BasicHost(swarm)
-        self.ip: str = ip
-        self.port: str = port
+        self.ip: str = address['ip']
+        self.port: str = address['port']
+        self.protocol_list: Dict[str, TProtocol] = {}
+        self.protocol_handler: Dict[str, types.FunctionType] = {}
 
-    async def run(self, protocol_list: Dict[str, TProtocol], protocol_handler: Dict[str, function]):
+    def set_protocol_and_handler(self, protocol_list: Dict[str, TProtocol], protocol_handler: Dict[str, types.FunctionType]) -> None:
         self.protocol_list: Dict[str, TProtocol] = protocol_list
-        self.protocol_handler: Dict[str, function] = protocol_handler
-        if protocol_list is None or protocol_handler is None:
-            self.protocol_list: Dict[str, TProtocol] = {}
-            self.protocol_handler: Dict[str, function] = {}
+        self.protocol_handler: Dict[str, types.FunctionType] = protocol_handler
 
+    async def run(self):
         # Receiving functionality
         listen_addr = multiaddr.Multiaddr(f"/ip4/{self.ip}/tcp/{self.port}")
         # Run the host and set up the stream handler for the specified protocol methods
@@ -75,11 +77,11 @@ class Libp2pBase:
             print("Waiting for incoming connections...")
             await trio.sleep_forever()
 
-    async def send(self, destination_ip: str, destination_port: str, destination_peer_id: ID, protocolId: TProtocol,
-                   message: Dict, timeout: float = 5.0, get_response: bool = True) -> Dict:
+    async def send(self, destination_address: Dict[str, str], destination_peer_id: ID, protocolId: TProtocol,
+                   message: Dict, result: Dict = None, timeout: float = 5.0) -> None:
 
         # Create the destination multiaddress
-        destination = f"/ip4/{destination_ip}/tcp/{destination_port}/p2p/{destination_peer_id}"
+        destination = f"/ip4/{destination_address['ip']}/tcp/{destination_address['port']}/p2p/{destination_peer_id}"
         maddr = multiaddr.Multiaddr(destination)
         info = info_from_p2p_addr(maddr)
 
@@ -93,13 +95,14 @@ class Libp2pBase:
                 stream = await self.host.new_stream(info.peer_id, [protocolId])
 
                 # Write the message to the stream
+                message = json.dumps(message).encode("utf-8")
                 await stream.write(message)
 
                 # Close the stream
                 await stream.close()
 
                 # If get_response is true, read the response
-                if get_response:
+                if result is not None:
                     response = await stream.read()
                     response = response.decode("utf-8")
                     response = json.loads(response)
@@ -108,6 +111,7 @@ class Libp2pBase:
 
             except Exception as e:
                 # TODO: use logging
+                logging.error('', exc_info=True)
                 print(f"An exception of type {type(e).__name__} occurred: {e}")
                 # Prepare an error response
                 response = {
@@ -125,7 +129,9 @@ class Libp2pBase:
                 "error": f"TIMEOUT: failed to complete communication with node {id} invoking protocol {protocolId}",
             }
 
-        return response
+        # If aggregation is enabled, append the response to the dictionary
+        if result is not None:
+            result[destination_peer_id] = (response)
 
     @staticmethod
     def generate_random_uuid() -> str:
