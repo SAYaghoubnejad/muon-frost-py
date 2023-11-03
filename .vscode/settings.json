@@ -1,0 +1,8 @@
+{
+    "terminal.integrated.env.osx": {
+        "PYTHONPATH": "./:${env:PYTHONPATH}"
+      },
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "./:${env:PYTHONPATH}"
+      }
+}
