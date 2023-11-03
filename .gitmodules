@@ -1,6 +1,3 @@
-[submodule "Gateway/TSS"]
-	path = Gateway/TSS
-	url = git@github.com:SAYaghoubnejad/TSS_lib.git
-[submodule "Node/TSS"]
-	path = Node/TSS
+[submodule "Common/TSS"]
+	path = Common/TSS
 	url = git@github.com:SAYaghoubnejad/TSS_lib.git
