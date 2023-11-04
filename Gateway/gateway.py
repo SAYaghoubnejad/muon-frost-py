@@ -14,11 +14,11 @@ class Gateway(Libp2pBase):
 
     async def requset_dkg(self, threshold: int, n: int, party: List[str]):
         # Execute Round 1 of the protocol
-        callMethod = "round1"
+        call_method = "round1"
         dkg_id = Libp2pBase.generate_random_uuid()
         data = {
-            "requestId": f"{dkg_id}:{callMethod}",
-            "method": callMethod,
+            "requestId": f"{dkg_id}:{call_method}",
+            "method": call_method,
             "parameters": {
                 "party": party,
                 "dkg_id": dkg_id,
@@ -30,10 +30,12 @@ class Gateway(Libp2pBase):
         async with trio.open_nursery() as nursery:
             for peer_id in party:
                 destination_address = DNS.lookup(peer_id)
-                nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[callMethod], data, round1_response)
+                nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round1_response)
 
         # TODO: check if all responses are SUCCESSFUL and return false otherwise
 
+        # TODO: logging
+        # TODO: error handling (if verification failed)
         # check validation of each node
         for peer_id, data in round1_response.items():
             data_bytes = json.dumps(data['broadcast']).encode('utf-8')
@@ -43,21 +45,18 @@ class Gateway(Libp2pBase):
             print(f'Verification of sent data from {peer_id}: ', public_key.verify(data_bytes, validation))
 
         # Execute Round 2 of the protocol
-        # callMethod = "round2"
-        # dkg_id = Libp2pBase.generate_random_uuid()
-        # data = {
-        #     "requestId": f"{dkg_id}:{callMethod}",
-        #     "method": callMethod,
-        #     "parameters": {
-        #         "party": party,
-        #         "dkg_id": dkg_id,
-        #         'threshold': threshold,
-        #         'n': n
-        #     },
-        # }
-        # round1_response = {}
-        # async with trio.open_nursery() as nursery:
-        #     for peer_id in party:
-        #         destination_address = DNS.lookup(peer_id)
-        #         nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[callMethod], data, round1_response)
+        call_method = "round2"
+        data = {
+            "requestId": f"{dkg_id}:{call_method}",
+            "method": call_method,
+            "parameters": {
+                "dkg_id": dkg_id,
+                'broadcasted_data': round1_response
+            },
+        }
+        round2_response = {}
+        async with trio.open_nursery() as nursery:
+            for peer_id in party:
+                destination_address = DNS.lookup(peer_id)
+                nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round2_response)
         

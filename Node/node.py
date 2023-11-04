@@ -1,7 +1,9 @@
 from Common.libp2p_base import Libp2pBase
 from Common.libp2p_config import PROTOCOLS_ID
+from Common.dns import DNS
 from Node.distributed_key import DistributedKey
 from libp2p.network.stream.net_stream_interface import INetStream
+from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from typing import Dict, List
 
 import json
@@ -15,7 +17,7 @@ class Node(Libp2pBase):
         # Define handlers for various protocol methods
         handlers = {
             'round1': self.round1_handler,
-            # 'round2': lambda stream: _round2(stream, node),
+            'round2': self.round2_handler,
             # 'peerExchange': lambda stream: _peerExchange(stream, node),
             # 'generateNonces': lambda stream: _generateNonces(stream, node),
             # 'sign': lambda stream: _sign(stream, node),
@@ -62,6 +64,49 @@ class Node(Libp2pBase):
         data = {
             "broadcast": broadcast_data,
             'validation': self._key_pair.private_key.sign(broadcast_bytes).hex(),
+            "status": "SUCCESSFUL",
+        }
+        response = json.dumps(data).encode("utf-8")
+        try:
+            await stream.write(response)
+        except Exception as e:
+            # TODO: use logging
+            print(f"An exception of type {type(e).__name__} occurred: {e}")
+        
+        await stream.close()
+
+    async def round2_handler(self, stream: INetStream) -> None:
+        # Read and decode the message from the network stream
+        msg = await stream.read()
+        msg = msg.decode("utf-8")
+        data = json.loads(msg)
+
+        # Extract requestId, method, and parameters from the message
+        request_id = data["requestId"]
+        sender_id = stream.muxed_conn.peer_id
+        method = data["method"]
+        parameters = data["parameters"]
+        dkg_id = parameters['dkg_id']
+        whole_broadcasted_data = parameters['broadcasted_data']
+
+        broadcasted_data = []
+        for peer_id, data in whole_broadcasted_data.items():
+            # TODO: logging
+            # TODO: error handling (if verification failed)
+            # check validation of each node
+            data_bytes = json.dumps(data['broadcast']).encode('utf-8')
+            validation = bytes.fromhex(data['validation'])
+            public_key_bytes = bytes.fromhex(DNS.lookup(peer_id)['public_key'])
+            public_key = Secp256k1PublicKey.deserialize(public_key_bytes)
+            print(f'Verification of sent data from {peer_id}: ', public_key.verify(data_bytes, validation))
+            broadcasted_data.append(data['broadcast'])
+
+        self.save_data('round1_broadcasted_data', broadcasted_data)
+
+
+        # print(round1_broadcasted_data)
+
+        data = {
             "status": "SUCCESSFUL",
         }
         response = json.dumps(data).encode("utf-8")

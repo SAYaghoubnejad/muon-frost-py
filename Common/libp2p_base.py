@@ -1,6 +1,4 @@
-import Crypto.PublicKey.RSA as RSA
 from libp2p.typing import TProtocol
-from libp2p.peer.id import ID
 import libp2p.crypto.ed25519 as ed25519
 from libp2p.peer.peerinfo import info_from_p2p_addr
 from libp2p.crypto.secp256k1 import create_new_key_pair
@@ -19,7 +17,6 @@ from typing import Dict
 import types
 import logging
 import uuid
-import base64
 import trio
 import multiaddr
 import json
@@ -29,7 +26,7 @@ class Libp2pBase:
         # TODO: check this procedure to creat host
         # Deserialize the private key and create RSA key pair
         self._key_pair = create_new_key_pair(bytes.fromhex(secret))
-        self.peer_id: ID = PeerID.from_pubkey(self._key_pair.public_key)
+        self.peer_id: PeerID = PeerID.from_pubkey(self._key_pair.public_key)
 
         # private_key_data = base64.b64decode(secret)
         # private_key = PrivateKey.deserialize_from_protobuf(private_key_data)
@@ -86,7 +83,7 @@ class Libp2pBase:
     def stop(self) -> None:
         self.__is_running = False
 
-    async def send(self, destination_address: Dict[str, str], destination_peer_id: ID, protocolId: TProtocol,
+    async def send(self, destination_address: Dict[str, str], destination_peer_id: PeerID, protocolId: TProtocol,
                    message: Dict, result: Dict = None, timeout: float = 5.0) -> None:
 
         # Create the destination multiaddress

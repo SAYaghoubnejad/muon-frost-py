@@ -25,6 +25,7 @@ class DNS:
             'public_key': '080212210338fede176f44704dc4fdcdace7c35108a126d8b77ad33ee7af09c0e18d56376a'
         }, }
 
+    # Interace
     @staticmethod
     def lookup(id: str):
         return DNS.lookup_table[id]
