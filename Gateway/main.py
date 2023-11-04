@@ -1,27 +1,26 @@
 from Gateway.gateway import Gateway
-from Gateway.gateway_config import PRIVATES
+from Gateway.gateway_config import PRIVATE
 from Common.dns import DNS
 
 import trio
 
 async def run(id: str, threshold: int, n: int) -> None: 
     party = [
-        'Qme3TyH6tPKgcEi8SUh3T5At8P1ogXf8b35j34H7BT3Ao2',
-        'QmS9xUMXu8KpbH2AWNEYbMh2NFyN93exGdkGF2qmBbvjoq',
-        'QmUX3cED2nL6nhmg8PtkaDxSmRVjv7F8BiFETS46rxdNGM'
+        '16Uiu2HAm7Sx71kCEvgK8drUWZACPhU2WiUftZPSKjbAC5accWqwE',
+        '16Uiu2HAmBep4CggnrJX36oQ1S5z8T9VTrjXS66Tskx2QzQJonkr2',
+        '16Uiu2HAmUSf3PjDQ6Y1eBPU3TbDFXQzsf9jmj4qyc7wXMGKceo2K'
     ]
-    gateway = Gateway(DNS.lookup(id) ,PRIVATES[id])
+    gateway = Gateway(DNS.lookup(id) ,PRIVATE)
 
-    # async with trio.open_nursery() as nursery:
-    #     nursery.start_soon(gateway.run)
-    #     nursery.start_soon(gateway.requset_dkg, threshold, n, party)
-
-    async with gateway.host.run(listen_addrs=[]):
+    async with trio.open_nursery() as nursery:
+        nursery.start_soon(gateway.run)
         await gateway.requset_dkg(threshold, n, party)
+        gateway.stop()
+
 
 if __name__ == "__main__":
 
-    id = 'Qmec1kCE66ptPiKjYBycgvHKuxAiswx3jrjfiLLJ95J5N5'
+    id = '16Uiu2HAmGVUb3nZ3yaKNpt5kH7KZccKrPaHmG1qTB48QvLdr7igH'
     threshold = 2
     n = 3
     try:

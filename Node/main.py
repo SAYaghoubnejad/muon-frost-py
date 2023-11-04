@@ -11,9 +11,9 @@ async def run(id: str) -> None:
 
 if __name__ == "__main__":
     id_to_peer_id = {
-        '1': 'Qme3TyH6tPKgcEi8SUh3T5At8P1ogXf8b35j34H7BT3Ao2',
-        '2': 'QmS9xUMXu8KpbH2AWNEYbMh2NFyN93exGdkGF2qmBbvjoq',
-        '3': 'QmUX3cED2nL6nhmg8PtkaDxSmRVjv7F8BiFETS46rxdNGM'
+        '1': '16Uiu2HAm7Sx71kCEvgK8drUWZACPhU2WiUftZPSKjbAC5accWqwE',
+        '2': '16Uiu2HAmBep4CggnrJX36oQ1S5z8T9VTrjXS66Tskx2QzQJonkr2',
+        '3': '16Uiu2HAmUSf3PjDQ6Y1eBPU3TbDFXQzsf9jmj4qyc7wXMGKceo2K'
     }
 
     id = id_to_peer_id[sys.argv[1]]

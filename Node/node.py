@@ -43,7 +43,8 @@ class Node(Libp2pBase):
         data = json.loads(msg)
 
         # Extract requestId, method, and parameters from the message
-        requestId = data["requestId"]
+        request_id = data["requestId"]
+        sender_id = stream.muxed_conn.peer_id
         method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
@@ -56,9 +57,11 @@ class Node(Libp2pBase):
             )
         
         broadcast_data = self.distributed_keys[dkg_id].round1()
+        broadcast_bytes = json.dumps(broadcast_data).encode('utf-8')
         # Prepare the response data
         data = {
             "broadcast": broadcast_data,
+            'validation': self._key_pair.private_key.sign(broadcast_bytes).hex(),
             "status": "SUCCESSFUL",
         }
         response = json.dumps(data).encode("utf-8")
@@ -67,5 +70,5 @@ class Node(Libp2pBase):
         except Exception as e:
             # TODO: use logging
             print(f"An exception of type {type(e).__name__} occurred: {e}")
-
+        
         await stream.close()
