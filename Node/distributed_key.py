@@ -1,7 +1,7 @@
-from typing import List
 from Common.TSS.tss import TSS
 from Common.TSS.polynomial import Polynomial
 from web3 import Web3
+from typing import List
 
 
 class DistributedKey:

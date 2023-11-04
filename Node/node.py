@@ -1,8 +1,8 @@
 from Common.libp2p_base import Libp2pBase
-from distributed_key import DistributedKey
 from Common.libp2p_config import PROTOCOLS_ID
-from typing import Dict, List
+from Node.distributed_key import DistributedKey
 from libp2p.network.stream.net_stream_interface import INetStream
+from typing import Dict, List
 
 import json
 
@@ -67,5 +67,5 @@ class Node(Libp2pBase):
         except Exception as e:
             # TODO: use logging
             print(f"An exception of type {type(e).__name__} occurred: {e}")
-            
+
         await stream.close()

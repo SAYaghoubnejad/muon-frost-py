@@ -1,7 +1,7 @@
 from Common.libp2p_base import Libp2pBase
-from typing import List, Dict
 from Common.dns import DNS
 from Common.libp2p_config import PROTOCOLS_ID
+from typing import List, Dict
 
 import trio
 import logging
