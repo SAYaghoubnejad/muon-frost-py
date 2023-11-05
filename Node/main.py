@@ -6,7 +6,8 @@ import sys
 import trio
 
 async def run(id: str) -> None:
-    node = Node(DNS.lookup(id), PRIVATES[id])
+    dns = DNS()
+    node = Node(dns.lookup(id), PRIVATES[id], dns)
     await node.run()
 
 if __name__ == "__main__":

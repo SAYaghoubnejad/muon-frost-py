@@ -1,21 +1,25 @@
-from Common.TSS.tss import TSS
+from Common.TSS.tss import TSS, ECPublicKey, ECPrivateKey
 from Common.TSS.polynomial import Polynomial
 from libp2p.peer.id import ID as PeerID
 from web3 import Web3
 from typing import List, Dict
+from pprint import pprint
+
+import json
 
 
 class DistributedKey:
-    def __init__(self, dkg_id: str, threshold: int, n: int, node_id: str, partners: List[str], coefficient0: str = None) -> None:
+    def __init__(self, dkg_id: str, threshold: int, n: int, node_id: PeerID, partners: List[str], coefficient0: str = None) -> None:
         self.threshold: int = threshold
         self.n: int = n
         self.dkg_id: str = dkg_id
-        self.node_id: str = node_id
+        self.node_id: PeerID = node_id
         self.partners: List[str] = partners
         self.coefficient0 = coefficient0
         self.store = {}
-        self.malicious = []
+        self.malicious: Dict[List] = []
 
+    # TODO: use class for these interface
     # Interface
     def save_data(self, key, value):
         self.store[key] = value
@@ -68,7 +72,7 @@ class DistributedKey:
                 "uint8"
                 ],
             [
-                str(self.node_id), 
+                self.node_id.to_base58(), 
                 self.dkg_id, 
                 TSS.pub_to_code(public_fx[0]), 
                 TSS.pub_to_code(public_coef0_nonce)
@@ -102,6 +106,7 @@ class DistributedKey:
         partners_public_keys = {}
         secret_key = self.get_data('secret_key')
         round1_broadcasted_data = self.get_data('round1_broadcasted_data')
+
         for data in round1_broadcasted_data:
             sender_id = data["sender_id"]
 
@@ -109,8 +114,8 @@ class DistributedKey:
                 continue
 
             sender_public_fx = data["public_fx"]
-            sender_coef0_nonce = data["coef0_signature"]["nonce"]
-            sender_coef0_signature = data["coef0_signature"]["nonce"]
+            sender_coef0_nonce = data["coefficient0_signature"]["nonce"]
+            sender_coef0_signature = data["coefficient0_signature"]["signature"]
 
             coef0_pop_hash = Web3.solidity_keccak(
                 ["string",  "string",       "uint8",                "uint8"],
@@ -155,6 +160,7 @@ class DistributedKey:
             id_as_int = int.from_bytes(PeerID.from_base58(id).to_bytes(), 'big')
             data = {
                 'receiver_id': id,
+                'sender_id': self.node_id.to_base58(),
                 'data': TSS.encrypt(
                     {"receiver_id": id, "f": fx.evaluate(id_as_int).d},
                     encryption_key
@@ -163,3 +169,71 @@ class DistributedKey:
             send.append(data)
         self.save_data("partners_public_keys", partners_public_keys)
         return send
+
+    def round3(self):
+        secret_key = self.get_data('secret_key')
+        partners_public_keys = self.get_data("partners_public_keys")
+        round1_broadcasted_data = self.get_data('round1_broadcasted_data')
+        round2_encrypted_data = self.get_data('round2_encrypted_data')
+        round2_data = []
+
+        for message in round2_encrypted_data:
+            sender_id = message['sender_id']
+            receiver_id = message['receiver_id']
+            encrypted_data = message['data']
+            encryption_key = TSS.generate_hkdf_key(secret_key , TSS.code_to_pub(partners_public_keys[sender_id]))
+            # TODO: logging
+            assert receiver_id == self.node_id.to_base58(), "ERROR: receiverID does not matched."
+
+            data = json.loads(TSS.decrypt(encrypted_data, encryption_key))
+            round2_data.append(data)
+            for round1_data in round1_broadcasted_data:
+                if round1_data["sender_id"] == sender_id:
+                    public_fx = round1_data["public_fx"]
+
+                    point1 = TSS.calc_poly_point(
+                        list(map(TSS.code_to_pub, public_fx)),
+                        int.from_bytes(self.node_id.to_bytes(), 'big')
+                    )
+                    
+                    point2 = TSS.curve.mul_point(
+                        data["f"], 
+                        TSS.curve.generator
+                    )
+
+                    if point1 != point2:
+                        # TODO: handle complient
+                        self.malicious.append({
+                            "id": receiver_id, 
+                            "complient": {
+                                "public_fx": public_fx, 
+                                "f": data["f"]
+                                }
+                            }
+                        )
+
+        # TODO: return status
+        if len(self.malicious) != 0:
+            return self.malicious
+        
+        fx: Polynomial = self.get_data("fx")
+        my_fragment = fx.evaluate(int.from_bytes(self.node_id.to_bytes(), 'big')).d
+        share_fragments = [my_fragment]
+        for data in round2_data:
+            share_fragments.append(data["f"])
+
+        public_fx = [self.get_data("public_fx")[0]]
+        for data in round1_broadcasted_data:
+            if data["sender_id"] in self.partners:
+                public_fx.append(TSS.code_to_pub(data["public_fx"][0]))
+
+        # TODO: renameing F
+        F = public_fx[0].W
+        for i in range(1, len(public_fx)):
+            F = TSS.curve.add_point(F, public_fx[i].W)
+        # TODO: removing nInv 
+        n_inverse = TSS.mod_inverse(self.n, TSS.N)
+        total_Fx = ECPublicKey(TSS.curve.mul_point(n_inverse, F))
+        share = ECPrivateKey(sum(share_fragments) * n_inverse, TSS.curve)
+        self.dkg_key_pair = {"share": share, "PublicKey": total_Fx}
+        return {"Group_PublicKey": TSS.pub_to_code(total_Fx) , "Share_PublicKey" : TSS.pub_to_code(share.get_public_key())}
