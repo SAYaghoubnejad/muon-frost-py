@@ -25,6 +25,17 @@ class DistributedKey:
         self.store[key] = value
 
     # Interface
+    def add_data(self, key, value):
+        try:
+            self.store[key].append(value)
+        except:
+            self.store[key] = [value]
+
+    # Interface
+    def remove_data(self, key, value):
+        self.store[key].remove(value)
+
+    # Interface
     def get_data(self, key):
         return self.store[key]
 
@@ -233,7 +244,54 @@ class DistributedKey:
             F = TSS.curve.add_point(F, public_fx[i].W)
         # TODO: removing nInv 
         n_inverse = TSS.mod_inverse(self.n, TSS.N)
-        total_Fx = ECPublicKey(TSS.curve.mul_point(n_inverse, F))
+        dkg_public_key = ECPublicKey(TSS.curve.mul_point(n_inverse, F))
         share = ECPrivateKey(sum(share_fragments) * n_inverse, TSS.curve)
-        self.dkg_key_pair = {"share": share, "PublicKey": total_Fx}
-        return {"Group_PublicKey": TSS.pub_to_code(total_Fx) , "Share_PublicKey" : TSS.pub_to_code(share.get_public_key())}
+        self.dkg_key_pair = {"share": share, "dkg_public_key": dkg_public_key}
+        return {"dkg_public_key": TSS.pub_to_code(dkg_public_key) , "public_share" : TSS.pub_to_code(share.get_public_key())}
+
+    def generate_nonces(self, number_of_nonces=10):
+        nonce_publics = []
+        for _ in range(number_of_nonces):
+            nonce_d = TSS.generate_random_private()
+            nonce_e = TSS.generate_random_private()
+            public_nonce_d = TSS.pub_to_code(nonce_d.get_public_key())
+            public_nonce_e = TSS.pub_to_code(nonce_e.get_public_key())
+
+            self.add_data('nonces', {
+                'nonce_d_pair': {public_nonce_d: nonce_d},
+                'nonce_e_pair': {public_nonce_e: nonce_e}
+            })
+
+            nonce_publics.append({
+                'id': self.node_id.to_base58(),
+                'public_nonce_d': public_nonce_d,
+                'public_nonce_e': public_nonce_e,
+            })
+
+        return nonce_publics
+    
+    def frost_sign(self, commitments_list, message):
+        assert type(message) == str, 'Message should be from string type.'
+        nonce_d = 0
+        nonce_e = 0
+        signature = None
+        nonce = commitments_list[self.node_id.to_base58()]
+        for pair in self.get_data('nonces'):
+            nonce_d = pair['nonce_d_pair'].get(nonce['public_nonce_d'])
+            nonce_e = pair['nonce_e_pair'].get(nonce['public_nonce_e'])
+            if nonce_d is None and nonce_e is None:
+                continue
+
+            signature = TSS.frost_single_sign(
+                self.node_id.to_base58(),
+                self.dkg_key_pair['share'],
+                nonce_d,
+                nonce_e,
+                message,
+                commitments_list,
+                TSS.pub_to_code(self.dkg_key_pair['dkg_public_key'])
+            )
+            self.remove_data(
+                {'nonce_d_pair': {nonce['public_nonce_d']: nonce_d}, 
+                 'nonce_e_pair': {nonce['public_nonce_e']: nonce_e}})
+        return signature
