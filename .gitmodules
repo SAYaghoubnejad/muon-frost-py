@@ -1,0 +1,3 @@
+[submodule "common/TSS"]
+	path = common/TSS
+	url = git@github.com:SAYaghoubnejad/TSS_lib.git
