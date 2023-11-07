@@ -1,7 +1,8 @@
-from Common.libp2p_base import Libp2pBase
-from Common.libp2p_config import PROTOCOLS_ID
-from Common.dns import DNS
-from Node.distributed_key import DistributedKey
+from common.libp2p_base import Libp2pBase
+from common.libp2p_config import PROTOCOLS_ID
+from common.dns import DNS
+from common.data_manager import DataManager
+from distributed_key import DistributedKey
 from libp2p.network.stream.net_stream_interface import INetStream
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from typing import Dict, List
@@ -10,7 +11,7 @@ import json
 
 
 class Node(Libp2pBase):
-    def __init__(self, address: Dict[str, str], secret: str, dns: DNS) -> None:
+    def __init__(self, data_manager: DataManager, address: Dict[str, str], secret: str, dns: DNS) -> None:
         super().__init__(address, secret)
         self.dns: DNS = dns
         self.distributed_keys: Dict[str, DistributedKey] = {}
@@ -24,6 +25,7 @@ class Node(Libp2pBase):
             # 'sign': lambda stream: _sign(stream, node),
         }
         self.set_protocol_and_handler(PROTOCOLS_ID, handlers)
+        self.data_manager: DataManager = data_manager
 
     # Interface
     def __add_new_key(self, dkg_id: str, threshold, n, party: List[str]) -> None:
@@ -33,7 +35,7 @@ class Node(Libp2pBase):
 
         partners = party
         partners.remove(self.peer_id)
-        self.distributed_keys[dkg_id] = DistributedKey(dkg_id, threshold, n, self.peer_id, partners) 
+        self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, threshold, n, self.peer_id, partners) 
 
     # Interface
     def get_distributed_key(self, dkg_id: str) -> DistributedKey:
@@ -102,9 +104,7 @@ class Node(Libp2pBase):
             print(f'Verification of sent data from {peer_id}: ', public_key.verify(data_bytes, validation))
             broadcasted_data.append(data['broadcast'])
 
-        self.distributed_keys[dkg_id].save_data('round1_broadcasted_data', broadcasted_data)
-
-        round2_broadcast_data = self.distributed_keys[dkg_id].round2()
+        round2_broadcast_data = self.distributed_keys[dkg_id].round2(broadcasted_data)
 
         data = {
             "broadcast": round2_broadcast_data,
@@ -133,9 +133,7 @@ class Node(Libp2pBase):
         dkg_id = parameters['dkg_id']
         send_data = parameters['send_data']
 
-        self.distributed_keys[dkg_id].save_data('round2_encrypted_data', send_data)
-
-        round3_data = self.distributed_keys[dkg_id].round3()
+        round3_data = self.distributed_keys[dkg_id].round3(send_data)
 
         data = {
             'data': round3_data,

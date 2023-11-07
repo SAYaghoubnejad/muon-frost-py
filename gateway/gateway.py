@@ -1,6 +1,6 @@
-from Common.libp2p_base import Libp2pBase
-from Common.dns import DNS
-from Common.libp2p_config import PROTOCOLS_ID
+from common.libp2p_base import Libp2pBase
+from common.dns import DNS
+from common.libp2p_config import PROTOCOLS_ID
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from pprint import pprint
@@ -91,5 +91,10 @@ class Gateway(Libp2pBase):
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round3_response)
                 
         # TODO: check if all responses are SUCCESSFUL and return false otherwise
-        pprint(round3_response)
-        
+        for id1, data1 in round3_response.items():
+            for id2, data2 in round3_response.items():
+                # TODO: handle this assertion
+                assert data1['data']['dkg_public_key'] == data2['data']['dkg_public_key'],\
+                    f'The DKG key of node {id1} is not consistance with the DGK key of node {id2}'
+        print('Key:', round3_response[party[0]]['data']['dkg_public_key']) 
+    

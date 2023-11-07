@@ -1,13 +1,15 @@
-from Common.dns import DNS
-from Node.node import Node
-from Node.node_config import PRIVATES
+from common.dns import DNS
+from common.data_manager import DataManager
+from node import Node
+from node_config import PRIVATES
 
 import sys
 import trio
 
 async def run(id: str) -> None:
     dns = DNS()
-    node = Node(dns.lookup(id), PRIVATES[id], dns)
+    data_manager = DataManager()
+    node = Node(data_manager, dns.lookup(id), PRIVATES[id], dns)
     await node.run()
 
 if __name__ == "__main__":

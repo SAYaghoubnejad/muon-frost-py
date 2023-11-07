@@ -1,6 +1,6 @@
-from Gateway.gateway import Gateway
-from Gateway.gateway_config import PRIVATE
-from Common.dns import DNS
+from gateway import Gateway
+from gateway_config import PRIVATE
+from common.dns import DNS
 
 import trio
 
