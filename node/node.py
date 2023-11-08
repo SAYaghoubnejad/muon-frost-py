@@ -9,7 +9,9 @@ from typing import Dict, List
 
 import json
 
+# TODO: remove dkg upon complaint
 
+# TODO: add requset caller (sender) validation
 class Node(Libp2pBase):
     def __init__(self, data_manager: DataManager, address: Dict[str, str], secret: str, dns: DNS) -> None:
         super().__init__(address, secret)
@@ -21,31 +23,27 @@ class Node(Libp2pBase):
             'round1': self.round1_handler,
             'round2': self.round2_handler,
             'round3': self.round3_handler,
-            # 'generateNonces': lambda stream: _generateNonces(stream, node),
-            # 'sign': lambda stream: _sign(stream, node),
+            'generate_nonces': self.generate_nonces_handler,
+            'sign': self.sign_handler,
         }
         self.set_protocol_and_handler(PROTOCOLS_ID, handlers)
         self.data_manager: DataManager = data_manager
+        self.data_manager.setup_database('common_data')
 
-    # Interface
     def __add_new_key(self, dkg_id: str, threshold, n, party: List[str]) -> None:
         assert len(party) == n, f'There number of node in party must be equal to n for app {dkg_id}'
         assert self.peer_id in party, f'This node is not amoung specified party for app {dkg_id}'
         assert threshold <= n, f'Threshold must be <= n for app {dkg_id}'
-
+        # TODO: check if this node is included in party
         partners = party
         partners.remove(self.peer_id)
         self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, threshold, n, self.peer_id, partners) 
-
-    # Interface
-    def get_distributed_key(self, dkg_id: str) -> DistributedKey:
-        return self.distributed_keys[dkg_id]
     
     async def round1_handler(self, stream: INetStream) -> None:
         # Read and decode the message from the network stream
-        msg = await stream.read()
-        msg = msg.decode("utf-8")
-        data = json.loads(msg)
+        message = await stream.read()
+        message = message.decode("utf-8")
+        data = json.loads(message)
 
         # Extract requestId, method, and parameters from the message
         request_id = data["requestId"]
@@ -80,9 +78,9 @@ class Node(Libp2pBase):
 
     async def round2_handler(self, stream: INetStream) -> None:
         # Read and decode the message from the network stream
-        msg = await stream.read()
-        msg = msg.decode("utf-8")
-        data = json.loads(msg)
+        message = await stream.read()
+        message = message.decode("utf-8")
+        data = json.loads(message)
 
         # Extract requestId, method, and parameters from the message
         request_id = data["requestId"]
@@ -121,9 +119,9 @@ class Node(Libp2pBase):
 
     async def round3_handler(self, stream: INetStream) -> None:
         # Read and decode the message from the network stream
-        msg = await stream.read()
-        msg = msg.decode("utf-8")
-        data = json.loads(msg)
+        message = await stream.read()
+        message = message.decode("utf-8")
+        data = json.loads(message)
 
         # Extract requestId, method, and parameters from the message
         request_id = data["requestId"]
@@ -137,6 +135,64 @@ class Node(Libp2pBase):
 
         data = {
             'data': round3_data,
+            "status": "SUCCESSFUL",
+        }
+        response = json.dumps(data).encode("utf-8")
+        try:
+            await stream.write(response)
+        except Exception as e:
+            # TODO: use logging
+            print(f"An exception of type {type(e).__name__} occurred: {e}")
+        
+        await stream.close()
+
+    async def generate_nonces_handler(self, stream: INetStream) -> None:
+        # Read and decode the message from the network stream
+        message = await stream.read()
+        message = message.decode("utf-8")
+        data = json.loads(message)
+
+        # Extract requestId, method, and parameters from the message
+        request_id = data["requestId"]
+        sender_id = stream.muxed_conn.peer_id
+        method = data["method"]
+        parameters = data["parameters"]
+        number_of_nonces = parameters['number_of_nonces']
+
+        nonces = DistributedKey.generate_nonces(self.data_manager, self.peer_id, number_of_nonces)
+
+        data = {
+            'nonces': nonces,
+            "status": "SUCCESSFUL",
+        }
+        response = json.dumps(data).encode("utf-8")
+        try:
+            await stream.write(response)
+        except Exception as e:
+            # TODO: use logging
+            print(f"An exception of type {type(e).__name__} occurred: {e}")
+        
+        await stream.close()
+
+    async def sign_handler(self, stream: INetStream) -> None:
+        # Read and decode the message from the network stream
+        message = await stream.read()
+        message = message.decode("utf-8")
+        data = json.loads(message)
+
+        # Extract requestId, method, and parameters from the message
+        request_id = data["requestId"]
+        sender_id = stream.muxed_conn.peer_id
+        method = data["method"]
+        parameters = data["parameters"]
+        dkg_id = parameters['dkg_id']
+        commitments_list = parameters['commitments_list']
+        message = parameters['message']
+
+        signature = self.distributed_keys[dkg_id].frost_sign(commitments_list, message)
+
+        data = {
+            'data': signature,
             "status": "SUCCESSFUL",
         }
         response = json.dumps(data).encode("utf-8")

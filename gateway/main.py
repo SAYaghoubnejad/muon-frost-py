@@ -2,6 +2,8 @@ from gateway import Gateway
 from gateway_config import PRIVATE
 from common.dns import DNS
 
+from pprint import pprint
+
 import trio
 
 async def run(id: str, threshold: int, n: int) -> None: 
@@ -15,7 +17,14 @@ async def run(id: str, threshold: int, n: int) -> None:
 
     async with trio.open_nursery() as nursery:
         nursery.start_soon(gateway.run)
-        await gateway.requset_dkg(threshold, n, party)
+        nursery.start_soon(gateway.maintain_nonces, party)
+        await trio.sleep(3)
+        dkg_key = await gateway.requset_dkg(threshold, n, party)
+
+        signature = await gateway.requset_signature(dkg_key, party, 'Hi there!')
+
+        print('signature:')
+        pprint(signature)
         gateway.stop()
 
 
