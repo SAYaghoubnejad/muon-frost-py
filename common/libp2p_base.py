@@ -23,7 +23,7 @@ import json
 
 class Libp2pBase:
     def __init__(self, address: Dict[str, str], secret: str) -> None:
-        # TODO: check this procedure to creat host
+        # TODO: check this procedure to create host
         # Deserialize the private key and create RSA key pair
         self._key_pair = create_new_key_pair(bytes.fromhex(secret))
         self.peer_id: PeerID = PeerID.from_pubkey(self._key_pair.public_key)
@@ -73,17 +73,15 @@ class Libp2pBase:
             for method in self.protocol_handler.keys():
                 self.host.set_stream_handler(
                     self.protocol_list[method], self.protocol_handler[method])
-
-            print(
-                "API:", f"/ip4/{self.ip}/tcp/{self.port}/p2p/{self.host.get_id().pretty()}'")
-            print("Waiting for incoming connections...")
+            logging.info(f" API: /ip4/{self.ip}/tcp/{self.port}/p2p/{self.host.get_id().pretty()}")
+            logging.info("Waiting for incoming connections...")
             while self.__is_running:
                 await trio.sleep(1)
 
     def stop(self) -> None:
         self.__is_running = False
 
-    async def send(self, destination_address: Dict[str, str], destination_peer_id: PeerID, protocolId: TProtocol,
+    async def send(self, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
                    message: Dict, result: Dict = None, timeout: float = 5.0) -> None:
 
         # Create the destination multiaddress
@@ -92,47 +90,58 @@ class Libp2pBase:
         info = info_from_p2p_addr(maddr)
 
         # Use trio's timeout to limit the connection attempt
-        with trio.move_on_after(timeout) as cancelScope:
+        with trio.move_on_after(timeout) as cancel_scope:
             try:
+                
                 # Connect to the recipient's peer
                 await self.host.connect(info)
+                
+                logging.info(f"{destination_peer_id}{protocol_id} Connected to peer.")
 
                 # Create a new stream for communication
-                stream = await self.host.new_stream(info.peer_id, [protocolId])
+                stream = await self.host.new_stream(info.peer_id, [protocol_id])
+
+                logging.info(f"{destination_peer_id}{protocol_id} Opened a new stream to peer")
 
                 # Write the message to the stream
                 message = json.dumps(message).encode("utf-8")
                 await stream.write(message)
 
+                logging.info(f"{destination_peer_id}{protocol_id} Sent message: {message}")
                 # Close the stream
                 await stream.close()
+
+                logging.info(f"{destination_peer_id}{protocol_id} Closed the stream")
+
+
+                logging.info(f"{destination_peer_id}{protocol_id} Closed the connection to the peer")
 
                 # If get_response is true, read the response
                 if result is not None:
                     response = await stream.read()
                     response = response.decode("utf-8")
                     response = json.loads(response)
+                    logging.info(f"{destination_peer_id}{protocol_id} Got message: {response}")
                 else:
                     response = {}
 
             except Exception as e:
-                # TODO: use logging
-                logging.error('', exc_info=True)
-                print(f"An exception of type {type(e).__name__} occurred: {e}")
+                logging.error(f'{destination_peer_id}{protocol_id}' 
+                               ' libp2p_base => Exception occured: ', exc_info=True)
                 # Prepare an error response
+                #
                 response = {
                     "status": "ERROR",
-                    "error": f"ERROR: failed to complete communication with node {id} invoking protocol {protocolId}; "
+                    "error": f"ERROR: failed to complete communication with node {destination_peer_id} invoking protocol {protocol_id}; "
                                 f"An exception of type {type(e).__name__} occurred: {e}",
                 }
 
         # Check if the operation was canceled tdue to a timeout
-        if cancelScope.cancelled_caught:
-            # TODO: use logging
-            print(f"TIMEOUT: ...")
+        if cancel_scope.cancelled_caught:
+            logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Timeout error occurred')
             response = {
                 "status": "TIMEOUT",
-                "error": f"TIMEOUT: failed to complete communication with node {id} invoking protocol {protocolId}",
+                "error": f"TIMEOUT: failed to complete communication with node {destination_peer_id} invoking protocol {protocol_id}",
             }
 
         # If aggregation is enabled, append the response to the dictionary

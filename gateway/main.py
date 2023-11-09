@@ -1,10 +1,12 @@
 from gateway import Gateway
 from gateway_config import PRIVATE
 from common.dns import DNS
-
 from pprint import pprint
 
 import trio
+import logging
+
+logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 async def run(id: str, threshold: int, n: int) -> None: 
     dns = DNS()
@@ -23,8 +25,8 @@ async def run(id: str, threshold: int, n: int) -> None:
 
         signature = await gateway.requset_signature(dkg_key, party, 'Hi there!')
 
-        print('signature:')
-        pprint(signature)
+
+        logging.info(f'Signature: {signature}')
         gateway.stop()
 
 

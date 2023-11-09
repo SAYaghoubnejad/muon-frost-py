@@ -3,8 +3,13 @@ from common.data_manager import DataManager
 from node import Node
 from node_config import PRIVATES
 
+import logging
 import sys
 import trio
+
+
+logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+
 
 async def run(id: str) -> None:
     dns = DNS()

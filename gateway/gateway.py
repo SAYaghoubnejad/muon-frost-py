@@ -15,7 +15,7 @@ class Gateway(Libp2pBase):
     def __init__(self, address: Dict[str, str], secret: str, dns: DNS) -> None:
         super().__init__(address, secret)
         self.dns: DNS = dns
-        self.__nonces: Dict[str, Dict[str, str]] = {}
+        self.__nonces: Dict[str, list[Dict]] = {}
 
     def __round2_data_for_peer_id(self, peer_id: str, data: Dict) -> List:
         result = []
@@ -48,7 +48,6 @@ class Gateway(Libp2pBase):
 
         # TODO: check if all responses are SUCCESSFUL and return false otherwise
 
-        # TODO: logging
         # TODO: error handling (if verification failed)
         # check validation of each node
         for peer_id, data in round1_response.items():
@@ -56,7 +55,7 @@ class Gateway(Libp2pBase):
             validation = bytes.fromhex(data['validation'])
             public_key_bytes = bytes.fromhex(self.dns.lookup(peer_id)['public_key'])
             public_key = Secp256k1PublicKey.deserialize(public_key_bytes)
-            print(f'Verification of sent data from {peer_id}: ', public_key.verify(data_bytes, validation))
+            logging.info(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
 
         # Execute Round 2 of the protocol
         call_method = "round2"
@@ -169,7 +168,7 @@ class Gateway(Libp2pBase):
         aggregatedSign = TSS.frost_aggregate_signatures(signs, dkg_key['public_shares'], message, commitments_dict, dkg_key['public_key'])
         
         if TSS.frost_verify_group_signature(aggregatedSign):
-            print('Signature is verified:)')
+            logging.warning('Signature is verified:)')
         
         # TODO: handle the condition in which aggregatedSign is not verified 
         return aggregatedSign
