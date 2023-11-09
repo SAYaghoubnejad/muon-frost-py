@@ -31,7 +31,7 @@ class Gateway(Libp2pBase):
         call_method = "round1"
         dkg_id = Libp2pBase.generate_random_uuid()
         data = {
-            "requestId": f"{dkg_id}:{call_method}",
+            "request_id": f"{dkg_id}_{call_method}",
             "method": call_method,
             "parameters": {
                 "party": party,
@@ -60,7 +60,7 @@ class Gateway(Libp2pBase):
         # Execute Round 2 of the protocol
         call_method = "round2"
         data = {
-            "requestId": f"{dkg_id}:{call_method}",
+            "request_id": f"{dkg_id}_{call_method}",
             "method": call_method,
             "parameters": {
                 "dkg_id": dkg_id,
@@ -82,7 +82,7 @@ class Gateway(Libp2pBase):
         async with trio.open_nursery() as nursery:
             for peer_id in party:
                 data = {
-                    "requestId": f"{dkg_id}:{call_method}",
+                    "request_id": f"{dkg_id}_{call_method}",
                     "method": call_method,
                     "parameters": {
                         "dkg_id": dkg_id,
@@ -120,7 +120,7 @@ class Gateway(Libp2pBase):
                 req_id = Libp2pBase.generate_random_uuid()
                 data = {
                 "method": call_method,
-                "requestId": f"{req_id}_{call_method}",
+                "request_id": f"{req_id}_{call_method}",
                 "parameters": {
                     'number_of_nonces': min_number_of_nonces * 5,
                     },
@@ -149,7 +149,7 @@ class Gateway(Libp2pBase):
         # TODO: add a function or wrapper to handle data
         data = {
         "method": call_method,
-        "requestId": f"{dkg_id}_{call_method}",
+        "request_id": f"{dkg_id}_{call_method}",
         "parameters": {
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,

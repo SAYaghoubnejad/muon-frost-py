@@ -46,8 +46,8 @@ class Node(Libp2pBase):
         message = message.decode("utf-8")
         data = json.loads(message)
         
-        # Extract requestId, method, and parameters from the message
-        request_id = data["requestId"]
+        # Extract request_id, method, and parameters from the message
+        request_id = data["request_id"]
         sender_id = stream.muxed_conn.peer_id
         method = data["method"]
         parameters = data["parameters"]
@@ -85,8 +85,8 @@ class Node(Libp2pBase):
         message = message.decode("utf-8")
         data = json.loads(message)
 
-        # Extract requestId, method, and parameters from the message
-        request_id = data["requestId"]
+        # Extract request_id, method, and parameters from the message
+        request_id = data["request_id"]
         sender_id = stream.muxed_conn.peer_id
         method = data["method"]
         parameters = data["parameters"]
@@ -127,8 +127,8 @@ class Node(Libp2pBase):
         message = message.decode("utf-8")
         data = json.loads(message)
 
-        # Extract requestId, method, and parameters from the message
-        request_id = data["requestId"]
+        # Extract request_id, method, and parameters from the message
+        request_id = data["request_id"]
         sender_id = stream.muxed_conn.peer_id
         method = data["method"]
         parameters = data["parameters"]
@@ -158,8 +158,8 @@ class Node(Libp2pBase):
         message = message.decode("utf-8")
         data = json.loads(message)
 
-        # Extract requestId, method, and parameters from the message
-        request_id = data["requestId"]
+        # Extract request_id, method, and parameters from the message
+        request_id = data["request_id"]
         sender_id = stream.muxed_conn.peer_id
         method = data["method"]
         parameters = data["parameters"]
@@ -187,8 +187,8 @@ class Node(Libp2pBase):
         message = message.decode("utf-8")
         data = json.loads(message)
 
-        # Extract requestId, method, and parameters from the message
-        request_id = data["requestId"]
+        # Extract request_id, method, and parameters from the message
+        request_id = data["request_id"]
         sender_id = stream.muxed_conn.peer_id
         method = data["method"]
         parameters = data["parameters"]
