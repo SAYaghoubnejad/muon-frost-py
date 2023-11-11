@@ -9,5 +9,4 @@ class UnpackedStream:
     async def read(self):
         if self.raw_data is None:
             self.raw_data = await self.stream.read()
-        print(self.raw_data)
         return self.raw_data

@@ -159,11 +159,9 @@ class Node(Libp2pBase):
 
     @auth_decorator
     async def generate_nonces_handler(self, unpacked_stream: UnpackedStream) -> None:
-        print('nonces')
         # Read and decode the message from the network stream
         message = await unpacked_stream.read()
         message = message.decode("utf-8")
-        print('msg', message)
         data = json.loads(message)
 
         # Extract request_id, method, and parameters from the message
