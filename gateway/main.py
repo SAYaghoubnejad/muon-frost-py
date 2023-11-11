@@ -46,6 +46,7 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
 
         # Stop the gateway
         gateway.stop()
+        nursery.cancel_scope.cancel()
 
 
 if __name__ == "__main__":
