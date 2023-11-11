@@ -12,21 +12,48 @@ import logging
 import json
 
 class Gateway(Libp2pBase):
+    """
+    Gateway class inherits from Libp2pBase, provides functionality for DKG (Distributed Key Generation)
+    protocol over a libp2p network.
+    """
+
     def __init__(self, address: Dict[str, str], secret: str, dns: DNS) -> None:
+        """
+        Initialize a new Gateway instance.
+        
+        :param address: A dictionary containing the IP and port for the gateway node.
+        :param secret: Secret key for the gateway node.
+        :param dns: DNS resolver instance.
+        """
         super().__init__(address, secret)
-        self.dns: DNS = dns
+        self.dns_resolver: DNS = dns
         self.__nonces: Dict[str, list[Dict]] = {}
 
-    def __round2_data_for_peer_id(self, peer_id: str, data: Dict) -> List:
-        result = []
-        for _, data in data.items():
-            for entry in data['broadcast']:
+    def _gather_round2_data(self, peer_id: str, data: Dict) -> List:
+        """
+        Collects round 2 data for a specific peer_id.
+
+        :param peer_id: The ID of the peer.
+        :param data: The data dictionary from round 1.
+        :return: A list of data entries for the specified peer.
+        """
+        round2_data = []
+        for _, round_data in data.items():
+            for entry in round_data['broadcast']:
                 if entry['receiver_id'] == peer_id:
-                    result.append(entry)
-        return result 
+                    round2_data.append(entry)
+        return round2_data
 
 
-    async def requset_dkg(self, threshold: int, n: int, party: List[str]) -> Dict:
+    async def request_dkg(self, threshold: int, n: int, party: List[str]) -> Dict:
+        """
+        Initiates the DKG protocol with the specified parties.
+
+        :param threshold: The threshold number of parties needed to reconstruct the key.
+        :param num_parties: The total number of parties involved in the DKG.
+        :param party_ids: List of party identifiers.
+        :return: A dictionary containing the DKG public key and shares.
+        """
         # Execute Round 1 of the protocol
         call_method = "round1"
         dkg_id = Libp2pBase.generate_random_uuid()
@@ -43,7 +70,7 @@ class Gateway(Libp2pBase):
         round1_response = {}
         async with trio.open_nursery() as nursery:
             for peer_id in party:
-                destination_address = self.dns.lookup(peer_id)
+                destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round1_response)
 
         # TODO: check if all responses are SUCCESSFUL and return false otherwise
@@ -53,7 +80,7 @@ class Gateway(Libp2pBase):
         for peer_id, data in round1_response.items():
             data_bytes = json.dumps(data['broadcast']).encode('utf-8')
             validation = bytes.fromhex(data['validation'])
-            public_key_bytes = bytes.fromhex(self.dns.lookup(peer_id)['public_key'])
+            public_key_bytes = bytes.fromhex(self.dns_resolver.lookup(peer_id)['public_key'])
             public_key = Secp256k1PublicKey.deserialize(public_key_bytes)
             logging.info(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
 
@@ -70,7 +97,7 @@ class Gateway(Libp2pBase):
         round2_response = {}
         async with trio.open_nursery() as nursery:
             for peer_id in party:
-                destination_address = self.dns.lookup(peer_id)
+                destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round2_response)
 
         # TODO: check if all responses are SUCCESSFUL and return false otherwise
@@ -86,10 +113,10 @@ class Gateway(Libp2pBase):
                     "method": call_method,
                     "parameters": {
                         "dkg_id": dkg_id,
-                        'send_data': self.__round2_data_for_peer_id(peer_id, round2_response)
+                        'send_data': self._gather_round2_data(peer_id, round2_response)
                     },
                 }
-                destination_address = self.dns.lookup(peer_id)
+                destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round3_response)
                 
         # TODO: check if all responses are SUCCESSFUL and return false otherwise
@@ -111,6 +138,13 @@ class Gateway(Libp2pBase):
         return response
     
     async def maintain_nonces(self, peer_ids: List[str], min_number_of_nonces: int=10, sleep_time: int=2) -> None:
+        """
+        Continuously maintains a list of nonces for each peer.
+
+        :param peer_ids: List of peer IDs to maintain nonces for.
+        :param min_nonce_count: Minimum number of nonces to maintain for each peer.
+        :param sleep_duration: Duration to sleep before checking again (in seconds).
+        """
         call_method = "generate_nonces"
         while True:
             for peer_id in peer_ids:
@@ -126,14 +160,20 @@ class Gateway(Libp2pBase):
                     },
                 }
                 nonces = {}
-                destination_address = self.dns.lookup(peer_id)
+                destination_address = self.dns_resolver.lookup(peer_id)
                 await self.send(destination_address, peer_id, PROTOCOLS_ID[call_method], data, nonces)
 
                  # TODO: check if response is SUCCESSFUL and return false otherwise
                 self.__nonces[peer_id] += nonces[peer_id]['nonces']
             await trio.sleep(sleep_time)
 
-    def get_commitments_dict(self, party: List[str]) -> Dict:
+    def get_commitments(self, party: List[str]) -> Dict:
+        """
+        Retrieves a dictionary of commitments from the nonces for each party.
+
+        :param party: List of party identifiers.
+        :return: A dictionary of commitments for each party.
+        """
         commitments_dict = {}
         for peer_id in party:
             commitment = self.__nonces[peer_id].pop()
@@ -142,10 +182,18 @@ class Gateway(Libp2pBase):
        
 
     # TODO: remove commitments_list
-    async def requset_signature(self, dkg_key: Dict, sign_party: List[str], message: str) -> Dict:
+    async def request_signature(self, dkg_key: Dict, sign_party: List[str], message: str) -> Dict:
+        """
+        Requests signatures from the specified parties for a given message.
+
+        :param dkg_key: The DKG key information.
+        :param sign_party: List of parties to sign the message.
+        :param message: The message to be signed.
+        :return: The aggregated signature.
+        """
         call_method = "sign"
         dkg_id = dkg_key['dkg_id']
-        commitments_dict = self.get_commitments_dict(sign_party)
+        commitments_dict = self.get_commitments(sign_party)
         # TODO: add a function or wrapper to handle data
         data = {
         "method": call_method,
@@ -159,7 +207,7 @@ class Gateway(Libp2pBase):
         signatures = {}
         async with trio.open_nursery() as nursery:
             for peer_id in sign_party:
-                destination_address = self.dns.lookup(peer_id)
+                destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, signatures)
         # TODO: check if all responses are SUCCESSFUL and return false otherwise
 

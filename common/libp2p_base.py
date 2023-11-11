@@ -1,11 +1,3 @@
-from typing import Dict
-import types
-import logging
-import uuid
-import trio
-import multiaddr
-import json
-
 # Importing necessary libp2p components
 from libp2p.typing import TProtocol
 import libp2p.crypto.ed25519 as ed25519
@@ -21,6 +13,14 @@ from libp2p.stream_muxer.mplex.mplex import MPLEX_PROTOCOL_ID, Mplex
 from libp2p.transport.tcp.tcp import TCP
 from libp2p.transport.upgrader import TransportUpgrader
 from libp2p.host.host_interface import IHost
+
+from typing import Dict
+import types
+import logging
+import uuid
+import trio
+import multiaddr
+import json
 
 class Libp2pBase:
     """
