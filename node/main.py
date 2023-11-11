@@ -19,19 +19,25 @@ async def run(id: str) -> None:
 if __name__ == "__main__":
     
     # Define logging basic configurations
-    log_formatter = logging.Formatter('%(asctime)s - %(message)s')
+    log_formatter = logging.Formatter('%(asctime)s - %(message)s', )
     root_logger = logging.getLogger()
 
     if not os.path.exists('logs'):
         os.mkdir('logs')
+    
+    log_file_path = f"logs/node{sys.argv[1]}.log"
+    with open(log_file_path, "w"):
+        pass
 
-    file_handler = logging.FileHandler(f"logs/gateway.log")
+    file_handler = logging.FileHandler(log_file_path)
     file_handler.setFormatter(log_formatter)
     root_logger.addHandler(file_handler)
 
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(log_formatter)
     root_logger.addHandler(console_handler)
+
+    
     root_logger.setLevel(logging.INFO)
 
 
