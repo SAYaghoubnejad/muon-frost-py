@@ -2,6 +2,8 @@ from common.libp2p_base import Libp2pBase
 from common.libp2p_config import PROTOCOLS_ID
 from common.dns import DNS
 from common.data_manager import DataManager
+from common.decorators import auth_decorator
+from common.unpacked_stream import UnpackedStream
 from distributed_key import DistributedKey
 from libp2p.network.stream.net_stream_interface import INetStream
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
@@ -40,15 +42,16 @@ class Node(Libp2pBase):
         partners.remove(self.peer_id)
         self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, threshold, n, self.peer_id, partners) 
     
-    async def round1_handler(self, stream: INetStream) -> None:
+    @auth_decorator
+    async def round1_handler(self, unpacked_stream: UnpackedStream) -> None:
         # Read and decode the message from the network stream
-        message = await stream.read()
+        message = await unpacked_stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
         
         # Extract request_id, method, and parameters from the message
         request_id = data["request_id"]
-        sender_id = stream.muxed_conn.peer_id
+        sender_id = unpacked_stream.sender_id
         method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
@@ -72,22 +75,23 @@ class Node(Libp2pBase):
         }
         response = json.dumps(data).encode("utf-8")
         try:
-            await stream.write(response)
+            await unpacked_stream.stream.write(response)
             logging.info(f'{sender_id}{PROTOCOLS_ID["round1"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error('node => Exception occurred :', exc_info=True)
         
-        await stream.close()
+        await unpacked_stream.stream.close()
 
-    async def round2_handler(self, stream: INetStream) -> None:
+    @auth_decorator
+    async def round2_handler(self, unpacked_stream: UnpackedStream) -> None:
         # Read and decode the message from the network stream
-        message = await stream.read()
+        message = await unpacked_stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
 
         # Extract request_id, method, and parameters from the message
         request_id = data["request_id"]
-        sender_id = stream.muxed_conn.peer_id
+        sender_id = unpacked_stream.sender_id
         method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
@@ -114,22 +118,23 @@ class Node(Libp2pBase):
         }
         response = json.dumps(data).encode("utf-8")
         try:
-            await stream.write(response)
+            await unpacked_stream.stream.write(response)
             logging.info(f'{sender_id}{PROTOCOLS_ID["round2"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error('node => Exception occurred: ', exc_info=True)
         
-        await stream.close()
+        await unpacked_stream.stream.close()
 
-    async def round3_handler(self, stream: INetStream) -> None:
+    @auth_decorator
+    async def round3_handler(self, unpacked_stream: UnpackedStream) -> None:
         # Read and decode the message from the network stream
-        message = await stream.read()
+        message = await unpacked_stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
 
         # Extract request_id, method, and parameters from the message
         request_id = data["request_id"]
-        sender_id = stream.muxed_conn.peer_id
+        sender_id = unpacked_stream.sender_id
         method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
@@ -145,22 +150,25 @@ class Node(Libp2pBase):
         }
         response = json.dumps(data).encode("utf-8")
         try:
-            await stream.write(response)
+            await unpacked_stream.stream.write(response)
             logging.info(f'{sender_id}{PROTOCOLS_ID["round3"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error('node => Exception occurred :', exc_info=True)
         
-        await stream.close()
+        await unpacked_stream.stream.close()
 
-    async def generate_nonces_handler(self, stream: INetStream) -> None:
+    @auth_decorator
+    async def generate_nonces_handler(self, unpacked_stream: UnpackedStream) -> None:
+        print('nonces')
         # Read and decode the message from the network stream
-        message = await stream.read()
+        message = await unpacked_stream.read()
         message = message.decode("utf-8")
+        print('msg', message)
         data = json.loads(message)
 
         # Extract request_id, method, and parameters from the message
         request_id = data["request_id"]
-        sender_id = stream.muxed_conn.peer_id
+        sender_id = unpacked_stream.sender_id
         method = data["method"]
         parameters = data["parameters"]
         number_of_nonces = parameters['number_of_nonces']
@@ -174,22 +182,23 @@ class Node(Libp2pBase):
         }
         response = json.dumps(data).encode("utf-8")
         try:
-            await stream.write(response)
+            await unpacked_stream.stream.write(response)
             logging.info(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error('node=> Exception occurred :', exc_info=True)
         
-        await stream.close()
+        await unpacked_stream.stream.close()
 
-    async def sign_handler(self, stream: INetStream) -> None:
+    @auth_decorator
+    async def sign_handler(self, unpacked_stream: UnpackedStream) -> None:
         # Read and decode the message from the network stream
-        message = await stream.read()
+        message = await unpacked_stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
 
         # Extract request_id, method, and parameters from the message
         request_id = data["request_id"]
-        sender_id = stream.muxed_conn.peer_id
+        sender_id = unpacked_stream.sender_id
         method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
@@ -206,9 +215,9 @@ class Node(Libp2pBase):
         }
         response = json.dumps(data).encode("utf-8")
         try:
-            await stream.write(response)
+            await unpacked_stream.stream.write(response)
             logging.info(f'{sender_id}{PROTOCOLS_ID["sign"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error('node=> Exception occurred :', exc_info=True)
         
-        await stream.close()
+        await unpacked_stream.stream.close()

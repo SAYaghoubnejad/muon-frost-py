@@ -20,6 +20,7 @@ class DistributedKey:
         self.malicious: Dict[List] = []
         self.__data_manager: DataManager = data_manager
         self.__data_manager.setup_database(dkg_id)
+        self.status = "STARTED"
     
     def round1(self) -> Dict:
         secret_key = TSS.generate_random_private()
@@ -136,9 +137,9 @@ class DistributedKey:
                 sender_secret_signature
             )
 
-            # TODO: add thos checking in gateway in addition to nodes
+            # TODO: add these checking in gateway in addition to nodes
             if not secret_verification or not coef0_verification:
-                # TODO: handle complient
+                # TODO: how to handle complient
                 self.malicious.append({"id": sender_id, "complient": data})                
             partners_public_keys[sender_id] = sender_public_key
 
@@ -230,7 +231,13 @@ class DistributedKey:
         dkg_public_key = ECPublicKey(TSS.curve.mul_point(n_inverse, F))
         share = ECPrivateKey(sum(share_fragments) * n_inverse, TSS.curve)
         self.dkg_key_pair = {"share": share, "dkg_public_key": dkg_public_key}
-        return {"dkg_public_key": TSS.pub_to_code(dkg_public_key) , "public_share" : TSS.pub_to_code(share.get_public_key())}
+
+        result = {
+            "dkg_public_key": TSS.pub_to_code(dkg_public_key),
+            "public_share" : TSS.pub_to_code(share.get_public_key()),
+            "status": "SUCCESSFUL"
+        }
+        return result
     
     def frost_sign(self, commitments_dict, message):
         assert type(message) == str, 'Message should be from string type.'

@@ -70,10 +70,7 @@ if __name__ == "__main__":
     console_handler.setFormatter(log_formatter)
     root_logger.addHandler(console_handler)
 
-    
     root_logger.setLevel(logging.INFO)
-
-
 
     # Define the node identifier and DKG parameters
     node_id = '16Uiu2HAmGVUb3nZ3yaKNpt5kH7KZccKrPaHmG1qTB48QvLdr7igH'

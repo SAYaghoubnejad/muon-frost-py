@@ -60,6 +60,7 @@ class Gateway(Libp2pBase):
         data = {
             "request_id": f"{dkg_id}_{call_method}",
             "method": call_method,
+            'gateway_authorization': {},
             "parameters": {
                 "party": party,
                 "dkg_id": dkg_id,
@@ -89,6 +90,7 @@ class Gateway(Libp2pBase):
         data = {
             "request_id": f"{dkg_id}_{call_method}",
             "method": call_method,
+            'gateway_authorization': {},
             "parameters": {
                 "dkg_id": dkg_id,
                 'broadcasted_data': round1_response
@@ -111,6 +113,7 @@ class Gateway(Libp2pBase):
                 data = {
                     "request_id": f"{dkg_id}_{call_method}",
                     "method": call_method,
+                    'gateway_authorization': {},
                     "parameters": {
                         "dkg_id": dkg_id,
                         'send_data': self._gather_round2_data(peer_id, round2_response)
@@ -155,6 +158,7 @@ class Gateway(Libp2pBase):
                 data = {
                 "method": call_method,
                 "request_id": f"{req_id}_{call_method}",
+                'gateway_authorization': {},
                 "parameters": {
                     'number_of_nonces': min_number_of_nonces * 5,
                     },
@@ -198,6 +202,7 @@ class Gateway(Libp2pBase):
         data = {
         "method": call_method,
         "request_id": f"{dkg_id}_{call_method}",
+        'gateway_authorization': {},
         "parameters": {
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
