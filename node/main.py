@@ -1,3 +1,4 @@
+import os
 from common.dns import DNS
 from common.data_manager import DataManager
 from node import Node
@@ -8,8 +9,6 @@ import sys
 import trio
 
 
-logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
-
 
 async def run(id: str) -> None:
     dns = DNS()
@@ -18,6 +17,25 @@ async def run(id: str) -> None:
     await node.run()
 
 if __name__ == "__main__":
+    
+    # Define logging basic configurations
+    log_formatter = logging.Formatter('%(asctime)s - %(message)s')
+    root_logger = logging.getLogger()
+
+    if not os.path.exists('logs'):
+        os.mkdir('logs')
+
+    file_handler = logging.FileHandler(f"logs/gateway.log")
+    file_handler.setFormatter(log_formatter)
+    root_logger.addHandler(file_handler)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_formatter)
+    root_logger.addHandler(console_handler)
+    root_logger.setLevel(logging.INFO)
+
+
+    
     id_to_peer_id = {
         '1': '16Uiu2HAm7Sx71kCEvgK8drUWZACPhU2WiUftZPSKjbAC5accWqwE',
         '2': '16Uiu2HAmBep4CggnrJX36oQ1S5z8T9VTrjXS66Tskx2QzQJonkr2',

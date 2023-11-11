@@ -1,3 +1,4 @@
+import os
 from gateway import Gateway
 from gateway_config import PRIVATE
 from common.dns import DNS
@@ -5,8 +6,6 @@ from common.dns import DNS
 import trio
 import logging
 
-# Configure logging for information display
-logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 async def run(gateway_id: str, threshold: int, n: int) -> None: 
     """
@@ -50,6 +49,27 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
 
 
 if __name__ == "__main__":
+
+
+    # Define logging basic configurations
+    log_formatter = logging.Formatter('%(asctime)s - %(message)s')
+    root_logger = logging.getLogger()
+
+    if not os.path.exists('logs'):
+        os.mkdir('logs')
+
+    file_handler = logging.FileHandler(f"logs/gateway.log")
+    file_handler.setFormatter(log_formatter)
+    root_logger.addHandler(file_handler)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_formatter)
+    root_logger.addHandler(console_handler)
+
+    root_logger.setLevel(logging.INFO)
+
+
+
     # Define the node identifier and DKG parameters
     node_id = '16Uiu2HAmGVUb3nZ3yaKNpt5kH7KZccKrPaHmG1qTB48QvLdr7igH'
     dkg_threshold = 2

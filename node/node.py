@@ -75,7 +75,7 @@ class Node(Libp2pBase):
             await stream.write(response)
             logging.info(f'{sender_id}{PROTOCOLS_ID["round1"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('node => Exception occured :', exc_info=True)
+            logging.error('node => Exception occurred :', exc_info=True)
         
         await stream.close()
 
@@ -117,7 +117,7 @@ class Node(Libp2pBase):
             await stream.write(response)
             logging.info(f'{sender_id}{PROTOCOLS_ID["round2"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('node => Exception occured: ', exc_info=True)
+            logging.error('node => Exception occurred: ', exc_info=True)
         
         await stream.close()
 
@@ -148,7 +148,7 @@ class Node(Libp2pBase):
             await stream.write(response)
             logging.info(f'{sender_id}{PROTOCOLS_ID["round3"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('node => Exception occured :', exc_info=True)
+            logging.error('node => Exception occurred :', exc_info=True)
         
         await stream.close()
 
@@ -177,7 +177,7 @@ class Node(Libp2pBase):
             await stream.write(response)
             logging.info(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('node=> Exception occured :', exc_info=True)
+            logging.error('node=> Exception occurred :', exc_info=True)
         
         await stream.close()
 
@@ -209,6 +209,6 @@ class Node(Libp2pBase):
             await stream.write(response)
             logging.info(f'{sender_id}{PROTOCOLS_ID["sign"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('node=> Exception occured :', exc_info=True)
+            logging.error('node=> Exception occurred :', exc_info=True)
         
         await stream.close()
