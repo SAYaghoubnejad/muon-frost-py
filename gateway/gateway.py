@@ -182,14 +182,13 @@ class Gateway(Libp2pBase):
         :param party: List of party identifiers.
         :return: A dictionary of commitments for each party.
         """
+        # TODO: what if nonces are not ready? (race condition!)
         commitments_dict = {}
         for peer_id in party:
             commitment = self.__nonces[peer_id].pop()
             commitments_dict[peer_id] = commitment
         return commitments_dict
        
-
-    # TODO: remove commitments_list
     async def request_signature(self, dkg_key: Dict, sign_party: List[str]) -> Dict:
         """
         Requests signatures from the specified parties for a given message.

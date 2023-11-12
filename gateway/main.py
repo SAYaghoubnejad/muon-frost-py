@@ -33,9 +33,6 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
         nursery.start_soon(gateway.run)
         nursery.start_soon(gateway.maintain_nonces, party_ids)
 
-        # Sleep to ensure initialization is complete
-        await trio.sleep(3)
-
         # Begin DKG protocol
         dkg_key = await gateway.request_dkg(threshold, n, party_ids, app_name)
         dkg_id = dkg_key['dkg_id']
