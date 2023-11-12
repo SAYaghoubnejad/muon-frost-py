@@ -35,3 +35,5 @@ class Utils:
         str: A randomly generated UUID.
         """
         return str(uuid.uuid4())
+    
+    # TODO: add rotation

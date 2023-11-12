@@ -2,7 +2,6 @@ from gateway import Gateway
 from gateway_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
 from common.dns import DNS
-from common.utils import Utils
 import trio
 import logging
 
