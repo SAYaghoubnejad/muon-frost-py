@@ -2,8 +2,8 @@ from common.libp2p_base import Libp2pBase
 from common.libp2p_config import PROTOCOLS_ID
 from common.dns import DNS
 from common.data_manager import DataManager
-from common.decorators import auth_decorator
-from common.unpacked_stream import UnpackedStream
+from decorators import auth_decorator
+from unpacked_stream import UnpackedStream
 from distributed_key import DistributedKey
 from libp2p.network.stream.net_stream_interface import INetStream
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
