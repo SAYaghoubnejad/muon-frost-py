@@ -2,6 +2,7 @@ from common.libp2p_base import Libp2pBase
 from common.libp2p_config import PROTOCOLS_ID
 from common.dns import DNS
 from common.data_manager import DataManager
+from common.utils import Utils
 from decorators import auth_decorator
 from unpacked_stream import UnpackedStream
 from distributed_key import DistributedKey
@@ -32,14 +33,16 @@ class Node(Libp2pBase):
         self.set_protocol_and_handler(PROTOCOLS_ID, handlers)
         self.data_manager: DataManager = data_manager
         self.data_manager.setup_database('common_data')
+        self.data_manager.setup_database('apps')
 
-    def __add_new_key(self, dkg_id: str, threshold, n, party: List[str]) -> None:
+    def __add_new_key(self, dkg_id: str, threshold, n, party: List[str], app_name: str) -> None:
         assert len(party) == n, f'There number of node in party must be equal to n for app {dkg_id}'
         assert self.peer_id in party, f'This node is not amoung specified party for app {dkg_id}'
         assert threshold <= n, f'Threshold must be <= n for app {dkg_id}'
         # TODO: check if this node is included in party
         partners = party
         partners.remove(self.peer_id)
+        self.data_manager.save_data('apps', dkg_id, app_name)
         self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, threshold, n, self.peer_id, partners) 
     
     @auth_decorator
@@ -55,6 +58,7 @@ class Node(Libp2pBase):
         method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
+        app_name = parameters['app_name']
 
         logging.info(f'{sender_id}{PROTOCOLS_ID["round1"]} Got message: {message}')
 
@@ -62,7 +66,8 @@ class Node(Libp2pBase):
             dkg_id, 
             parameters['threshold'], 
             parameters['n'],
-            parameters['party']
+            parameters['party'],
+            app_name
             )
         
         round1_broadcast_data = self.distributed_keys[dkg_id].round1()
@@ -201,14 +206,18 @@ class Node(Libp2pBase):
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
         commitments_list = parameters['commitments_list']
-        message = parameters['message']
+
+        app_name = self.data_manager.get_data('apps', dkg_id)
+        message = Utils.call_external_method(f'apps.{app_name}', 'sign')
+        encoded_message = json.dumps(message)
 
         logging.info(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
 
-        signature = self.distributed_keys[dkg_id].frost_sign(commitments_list, message)
+        signature = self.distributed_keys[dkg_id].frost_sign(commitments_list, encoded_message)
 
         data = {
-            'data': signature,
+            'data': message,
+            'signature_data': signature,
             "status": "SUCCESSFUL",
         }
         response = json.dumps(data).encode("utf-8")

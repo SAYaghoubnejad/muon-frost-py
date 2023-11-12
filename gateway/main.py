@@ -7,7 +7,7 @@ import trio
 import logging
 
 
-async def run(gateway_id: str, threshold: int, n: int) -> None: 
+async def run(gateway_id: str, threshold: int, n: int) -> None:
     """
     Sets up and runs a gateway node in a distributed network using libp2p.
 
@@ -26,6 +26,7 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
 
     # Initialize the Gateway with DNS lookup for the current node
     gateway = Gateway(dns.lookup(gateway_id), PRIVATE, dns)
+    app_name = 'sample_oracle'
 
     async with trio.open_nursery() as nursery:
         # Start gateway and maintain nonce values for each peer
@@ -36,16 +37,13 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
         await trio.sleep(3)
 
         # Begin DKG protocol
-        dkg_key = await gateway.request_dkg(threshold, n, party_ids)
+        dkg_key = await gateway.request_dkg(threshold, n, party_ids, app_name)
+        dkg_id = dkg_key['dkg_id']
 
-
-        message = Utils.call_external_method('common.sample_method', 'method')
-        logging.info(f'Message called from external method is: {message}')
+        logging.info(f'Get signature for app {app_name} with DKG id {dkg_id}')
 
         # Request signature using the generated DKG key
-        signature = await gateway.request_signature(dkg_key, party_ids, message)
-
-        
+        signature = await gateway.request_signature(dkg_key, party_ids)
 
         # Log the generated signature
         logging.info(f'Signature: {signature}')
@@ -58,8 +56,7 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
 if __name__ == "__main__":
 
     # Define the logging configurations
-    ConfigurationSettings.set_logging_options \
-                        ('logs', 'gateway.log')
+    ConfigurationSettings.set_logging_options('logs', 'gateway.log')
 
     # Define the node identifier and DKG parameters
     node_id = '16Uiu2HAmGVUb3nZ3yaKNpt5kH7KZccKrPaHmG1qTB48QvLdr7igH'

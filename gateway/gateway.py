@@ -45,13 +45,14 @@ class Gateway(Libp2pBase):
         return round2_data
 
 
-    async def request_dkg(self, threshold: int, n: int, party: List[str]) -> Dict:
+    async def request_dkg(self, threshold: int, n: int, party: List[str], app_name: str) -> Dict:
         """
         Initiates the DKG protocol with the specified parties.
 
         :param threshold: The threshold number of parties needed to reconstruct the key.
         :param num_parties: The total number of parties involved in the DKG.
         :param party_ids: List of party identifiers.
+        :param app_name: The name of app for which the key is generated.
         :return: A dictionary containing the DKG public key and shares.
         """
         # Execute Round 1 of the protocol
@@ -64,6 +65,7 @@ class Gateway(Libp2pBase):
             "parameters": {
                 "party": party,
                 "dkg_id": dkg_id,
+                'app_name': app_name,
                 'threshold': threshold,
                 'n': n
             },
@@ -186,13 +188,12 @@ class Gateway(Libp2pBase):
        
 
     # TODO: remove commitments_list
-    async def request_signature(self, dkg_key: Dict, sign_party: List[str], message: str) -> Dict:
+    async def request_signature(self, dkg_key: Dict, sign_party: List[str]) -> Dict:
         """
         Requests signatures from the specified parties for a given message.
 
         :param dkg_key: The DKG key information.
         :param sign_party: List of parties to sign the message.
-        :param message: The message to be signed.
         :return: The aggregated signature.
         """
         call_method = "sign"
@@ -206,7 +207,6 @@ class Gateway(Libp2pBase):
         "parameters": {
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
-            'message': message
         },
         }
         signatures = {}
@@ -217,8 +217,10 @@ class Gateway(Libp2pBase):
         # TODO: check if all responses are SUCCESSFUL and return false otherwise
 
         # Extract individual signatures and aggregate them
-        signs = [i['data'] for i in signatures.values()]
-        aggregatedSign = TSS.frost_aggregate_signatures(signs, dkg_key['public_shares'], message, commitments_dict, dkg_key['public_key'])
+        signs = [i['signature_data'] for i in signatures.values()]
+        message = [i['data'] for i in signatures.values()][0]
+        encoded_message = json.dumps(message)
+        aggregatedSign = TSS.frost_aggregate_signatures(signs, dkg_key['public_shares'], encoded_message, commitments_dict, dkg_key['public_key'])
         
         if TSS.frost_verify_group_signature(aggregatedSign):
             logging.warning('Signature is verified:)')
