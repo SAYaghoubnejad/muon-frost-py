@@ -2,7 +2,7 @@ from gateway import Gateway
 from gateway_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
 from common.dns import DNS
-from common.utils import *
+from common.utils import Utils
 import trio
 import logging
 
@@ -39,7 +39,7 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
         dkg_key = await gateway.request_dkg(threshold, n, party_ids)
 
 
-        message = call_external_method('common.sample_method', 'method')
+        message = Utils.call_external_method('common.sample_method', 'method')
         logging.info(f'Message called from external method is: {message}')
 
         # Request signature using the generated DKG key
