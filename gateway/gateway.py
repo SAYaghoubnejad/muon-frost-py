@@ -4,6 +4,7 @@ from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
 from gateway_config import GATEWAY_TOKEN
+from error_handler import ErrorHandler
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
@@ -30,6 +31,7 @@ class Gateway(Libp2pBase):
         super().__init__(address, secret)
         self.dns_resolver: DNS = dns
         self.__nonces: Dict[str, list[Dict]] = {}
+        self.error_handler = ErrorHandler()
 
     def _gather_round2_data(self, peer_id: str, data: Dict) -> List:
         """
@@ -57,9 +59,9 @@ class Gateway(Libp2pBase):
         :param app_name: The name of app for which the key is generated.
         :return: A dictionary containing the DKG public key and shares.
         """
+        dkg_id = Utils.generate_random_uuid()
         # Execute Round 1 of the protocol
         call_method = "round1"
-        dkg_id = Utils.generate_random_uuid()
         data = {
             "request_id": f"{dkg_id}_{call_method}",
             "method": call_method,
@@ -78,8 +80,13 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round1_response)
 
-        # TODO: check if all responses are SUCCESSFUL and return false otherwise
+        is_complete = self.error_handler.check_response(round1_response)
 
+        if not is_complete:
+            return {
+                'result': 'FAIL'
+            }
+        
         # TODO: error handling (if verification failed)
         # check validation of each node
         for peer_id, data in round1_response.items():
@@ -106,7 +113,12 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round2_response)
 
-        # TODO: check if all responses are SUCCESSFUL and return false otherwise
+        is_complete = self.error_handler.check_response(round2_response)
+
+        if not is_complete:
+            return {
+                'result': 'FAIL'
+            }
 
         # Execute Round 3 of the protocol
         call_method = "round3"
@@ -126,7 +138,13 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round3_response)
                 
-        # TODO: check if all responses are SUCCESSFUL and return false otherwise
+        is_complete = self.error_handler.check_response(round3_response)
+
+        if not is_complete:
+            return {
+                'result': 'FAIL'
+            }
+
         for id1, data1 in round3_response.items():
             for id2, data2 in round3_response.items():
                 # TODO: handle this assertion
@@ -140,7 +158,8 @@ class Gateway(Libp2pBase):
         response = {
             'dkg_id': dkg_id,
             'public_key': public_key,
-            'public_shares': public_shares
+            'public_shares': public_shares,
+            'result': 'SUCCESSFUL'
         }
         return response
     
@@ -171,7 +190,8 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 await self.send(destination_address, peer_id, PROTOCOLS_ID[call_method], data, nonces)
 
-                 # TODO: check if response is SUCCESSFUL and return false otherwise
+                self.error_handler.check_response(nonces)
+
                 self.__nonces[peer_id] += nonces[peer_id]['nonces']
             await trio.sleep(sleep_time)
 
@@ -215,7 +235,13 @@ class Gateway(Libp2pBase):
             for peer_id in sign_party:
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, signatures)
-        # TODO: check if all responses are SUCCESSFUL and return false otherwise
+        
+        is_complete = self.error_handler.check_response(signatures)
+
+        if not is_complete:
+            return {
+                'result': 'FAIL'
+            }
 
         # Extract individual signatures and aggregate them
         signs = [i['signature_data'] for i in signatures.values()]
@@ -224,7 +250,9 @@ class Gateway(Libp2pBase):
         aggregatedSign = TSS.frost_aggregate_signatures(signs, dkg_key['public_shares'], encoded_message, commitments_dict, dkg_key['public_key'])
         
         if TSS.frost_verify_group_signature(aggregatedSign):
+            aggregatedSign['result'] = 'SUCCESSFUL'
             logging.warning('Signature is verified:)')
-        
-        # TODO: handle the condition in which aggregatedSign is not verified 
+        else:
+            aggregatedSign['result'] = 'NOT_VERIFIED'
+
         return aggregatedSign

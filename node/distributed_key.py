@@ -222,14 +222,12 @@ class DistributedKey:
             if data["sender_id"] in self.partners:
                 public_fx.append(TSS.code_to_pub(data["public_fx"][0]))
 
-        # TODO: renameing F
-        F = public_fx[0].W
+        aggregated_point = public_fx[0].W
         for i in range(1, len(public_fx)):
-            F = TSS.curve.add_point(F, public_fx[i].W)
-        # TODO: removing nInv 
-        n_inverse = TSS.mod_inverse(self.n, TSS.N)
-        dkg_public_key = ECPublicKey(TSS.curve.mul_point(n_inverse, F))
-        share = ECPrivateKey(sum(share_fragments) * n_inverse, TSS.curve)
+            aggregated_point = TSS.curve.add_point(aggregated_point, public_fx[i].W)
+
+        dkg_public_key = ECPublicKey(aggregated_point)
+        share = ECPrivateKey(sum(share_fragments), TSS.curve)
         self.dkg_key_pair = {"share": share, "dkg_public_key": dkg_public_key}
 
         result = {

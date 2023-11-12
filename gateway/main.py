@@ -34,9 +34,21 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
         nursery.start_soon(gateway.maintain_nonces, party_ids)
 
         # Begin DKG protocol
-        dkg_key = await gateway.request_dkg(threshold, n, party_ids, app_name)
-        dkg_id = dkg_key['dkg_id']
+        is_completed = False
+        dkg_key = None
+        while not is_completed:
+            party_ids = gateway.error_handler.get_new_party(party_ids)
+            if len(party_ids) < threshold:
+                logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of availadle nodes')
+                exit()
+            
+            dkg_key = await gateway.request_dkg(threshold, n, party_ids, app_name)
+            result = dkg_key['result']
+            logging.info(f'The DKG result is {result}')
+            if result == 'SUCCESSFUL':
+                is_completed = True
 
+        dkg_id = dkg_key['dkg_id']
         logging.info(f'Get signature for app {app_name} with DKG id {dkg_id}')
 
         # Request signature using the generated DKG key
