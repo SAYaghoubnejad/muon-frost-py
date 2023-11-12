@@ -1,1 +1,3 @@
 PRIVATE = ''
+
+GATEWAY_TOKEN = {}

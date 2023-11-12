@@ -3,6 +3,7 @@ from common.dns import DNS
 from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
+from gateway_config import GATEWAY_TOKEN
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
@@ -62,7 +63,7 @@ class Gateway(Libp2pBase):
         data = {
             "request_id": f"{dkg_id}_{call_method}",
             "method": call_method,
-            'gateway_authorization': {},
+            'gateway_authorization': GATEWAY_TOKEN,
             "parameters": {
                 "party": party,
                 "dkg_id": dkg_id,
@@ -93,7 +94,7 @@ class Gateway(Libp2pBase):
         data = {
             "request_id": f"{dkg_id}_{call_method}",
             "method": call_method,
-            'gateway_authorization': {},
+            'gateway_authorization': GATEWAY_TOKEN,
             "parameters": {
                 "dkg_id": dkg_id,
                 'broadcasted_data': round1_response
@@ -116,7 +117,7 @@ class Gateway(Libp2pBase):
                 data = {
                     "request_id": f"{dkg_id}_{call_method}",
                     "method": call_method,
-                    'gateway_authorization': {},
+                    'gateway_authorization': GATEWAY_TOKEN,
                     "parameters": {
                         "dkg_id": dkg_id,
                         'send_data': self._gather_round2_data(peer_id, round2_response)
@@ -161,7 +162,7 @@ class Gateway(Libp2pBase):
                 data = {
                 "method": call_method,
                 "request_id": f"{req_id}_{call_method}",
-                'gateway_authorization': {},
+                'gateway_authorization': GATEWAY_TOKEN,
                 "parameters": {
                     'number_of_nonces': min_number_of_nonces * 5,
                     },
@@ -204,7 +205,7 @@ class Gateway(Libp2pBase):
         data = {
         "method": call_method,
         "request_id": f"{dkg_id}_{call_method}",
-        'gateway_authorization': {},
+        'gateway_authorization': GATEWAY_TOKEN,
         "parameters": {
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
