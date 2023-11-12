@@ -18,6 +18,8 @@ async def run(id: str) -> None:
 
 if __name__ == "__main__":
 
+
+    # Define the logging configurations
     ConfigurationSettings.set_logging_options \
                         ('logs', f'node{sys.argv[1]}.log')
 

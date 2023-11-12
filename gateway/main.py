@@ -2,7 +2,7 @@ from gateway import Gateway
 from gateway_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
 from common.dns import DNS
-
+from common.utils import *
 import trio
 import logging
 
@@ -38,8 +38,14 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
         # Begin DKG protocol
         dkg_key = await gateway.request_dkg(threshold, n, party_ids)
 
+
+        message = call_external_method('common.sample_method', 'method')
+        logging.info(f'Message called from external method is: {message}')
+
         # Request signature using the generated DKG key
-        signature = await gateway.request_signature(dkg_key, party_ids, 'Hi there!')
+        signature = await gateway.request_signature(dkg_key, party_ids, message)
+
+        
 
         # Log the generated signature
         logging.info(f'Signature: {signature}')
@@ -51,7 +57,7 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
 
 if __name__ == "__main__":
 
-
+    # Define the logging configurations
     ConfigurationSettings.set_logging_options \
                         ('logs', 'gateway.log')
 
