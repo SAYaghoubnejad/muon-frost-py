@@ -17,7 +17,6 @@ from libp2p.host.host_interface import IHost
 from typing import Dict
 import types
 import logging
-import uuid
 import trio
 import multiaddr
 import json
@@ -155,14 +154,4 @@ class Libp2pBase:
                 }
                 if result is not None:
                     result[destination_peer_id] = timeout_response
-
-    @staticmethod
-    def generate_random_uuid() -> str:
-        """
-        Generates a random UUID.
-
-        Returns:
-        str: A randomly generated UUID.
-        """
-        return str(uuid.uuid4())
 

@@ -2,6 +2,7 @@ from common.libp2p_base import Libp2pBase
 from common.dns import DNS
 from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
+from common.utils import Utils
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
@@ -57,7 +58,7 @@ class Gateway(Libp2pBase):
         """
         # Execute Round 1 of the protocol
         call_method = "round1"
-        dkg_id = Libp2pBase.generate_random_uuid()
+        dkg_id = Utils.generate_random_uuid()
         data = {
             "request_id": f"{dkg_id}_{call_method}",
             "method": call_method,
@@ -156,7 +157,7 @@ class Gateway(Libp2pBase):
                 if len(self.__nonces.setdefault(peer_id, [])) >= min_number_of_nonces:
                     continue
 
-                req_id = Libp2pBase.generate_random_uuid()
+                req_id = Utils.generate_random_uuid()
                 data = {
                 "method": call_method,
                 "request_id": f"{req_id}_{call_method}",

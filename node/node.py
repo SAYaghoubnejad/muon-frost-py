@@ -14,8 +14,6 @@ import json
 import logging
 
 # TODO: remove dkg upon complaint
-
-# TODO: add requset caller (sender) validation
 class Node(Libp2pBase):
     def __init__(self, data_manager: DataManager, address: Dict[str, str], secret: str, dns: DNS) -> None:
         super().__init__(address, secret)

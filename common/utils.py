@@ -1,5 +1,6 @@
 import importlib
 import logging
+import uuid
 
 
 class Utils:
@@ -24,3 +25,13 @@ class Utils:
         except Exception as e:
             logging.error(f"Unhandled error: ", exc_info=True)
             return None
+        
+    @staticmethod
+    def generate_random_uuid() -> str:
+        """
+        Generates a random UUID.
+
+        Returns:
+        str: A randomly generated UUID.
+        """
+        return str(uuid.uuid4())
