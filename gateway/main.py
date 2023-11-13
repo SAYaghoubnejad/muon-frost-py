@@ -1,7 +1,10 @@
+import time
 from gateway import Gateway
 from gateway_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
 from common.dns import DNS
+from common.utils import Utils
+
 import trio
 import logging
 
@@ -20,8 +23,15 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
     party_ids = [
         '16Uiu2HAm7Sx71kCEvgK8drUWZACPhU2WiUftZPSKjbAC5accWqwE',
         '16Uiu2HAmBep4CggnrJX36oQ1S5z8T9VTrjXS66Tskx2QzQJonkr2',
-        '16Uiu2HAmUSf3PjDQ6Y1eBPU3TbDFXQzsf9jmj4qyc7wXMGKceo2K'
+        '16Uiu2HAmUSf3PjDQ6Y1eBPU3TbDFXQzsf9jmj4qyc7wXMGKceo2K',
+        '16Uiu2HAm4zhoM9y3oZnSVr3z3sL2SmEDbMfB6k3pS548o2jY5PRH'
     ]
+
+
+    # Choose subnet from node peer IDS.
+    party_ids = Utils.get_new_random_subset(party_ids, int(time.time()), 3)
+    
+    logging.info(f'Chosen peer IDs: {party_ids}')
 
     # Initialize the Gateway with DNS lookup for the current node
     gateway = Gateway(dns.lookup(gateway_id), PRIVATE, dns)
@@ -31,7 +41,7 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
         # Start gateway and maintain nonce values for each peer
         nursery.start_soon(gateway.run)
         nursery.start_soon(gateway.maintain_nonces, party_ids)
-
+        
         # Begin DKG protocol
         is_completed = False
         dkg_key = None
@@ -49,6 +59,8 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
 
         dkg_id = dkg_key['dkg_id']
         logging.info(f'Get signature for app {app_name} with DKG id {dkg_id}')
+
+        await trio.sleep(3)
 
         # Request signature using the generated DKG key
         signature = await gateway.request_signature(dkg_key, party_ids)

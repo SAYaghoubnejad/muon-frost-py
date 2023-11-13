@@ -27,6 +27,11 @@ class DNS:
                 "port": "6000",
                 'public_key': '0802122103ea923057d66a68614b69ead773a7b5982ce51bed269542f7b18a82eef44dacbc'
             },
+            "16Uiu2HAm4zhoM9y3oZnSVr3z3sL2SmEDbMfB6k3pS548o2jY5PRH": {
+                "ip": "127.0.0.1",
+                "port": "6500",
+                'public_key': '08021221028e2f682512a15da808b0e5cc17cab77ce65b0a057d0f8f97ef79b414085156a8'
+            },
             # Gateway
             "16Uiu2HAmGVUb3nZ3yaKNpt5kH7KZccKrPaHmG1qTB48QvLdr7igH": {
                 "ip": "127.0.0.1",
