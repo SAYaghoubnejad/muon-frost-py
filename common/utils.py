@@ -38,6 +38,7 @@ class Utils:
         """
         return str(uuid.uuid4())
     
+    # TODO: add a decorator to verify random seed
     @staticmethod
     def get_new_random_subset(list: List, seed: int, subset_size: int) -> None:
         random.seed(seed)  

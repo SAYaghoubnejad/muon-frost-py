@@ -5,6 +5,7 @@ import time
 import numpy as np
 
 
+# TODO: Use data manager to store information
 class Penalty:
     def __init__(self, id: str) -> None:
         self.id = id
@@ -17,30 +18,34 @@ class Penalty:
 
 class ErrorHandler:
     def __init__(self) -> None:
-        self.penaltys: Dict[str, Penalty] = {}
+        self.penalties: Dict[str, Penalty] = {}
 
+    # TODO: use dkg_id -> party
     def get_new_party(self, old_party: List[str], n: int=None) -> List[str]:
+        # TODO
         if n is None or n > len(old_party):
             n = len(old_party)
         
+        penalties = {}
         for peer_id in old_party:
-            if peer_id not in self.penaltys.keys():
-                self.penaltys[peer_id] = Penalty(peer_id)
+            if peer_id not in self.penalties.keys():
+                self.penalties[peer_id] = Penalty(peer_id)
+                penalties[peer_id] = self.penalties[peer_id].copy()
 
-        penaltys = self.penaltys.copy()
         current_time = int(time.time())
-        for id, penalty in penaltys.items():
+        for id, penalty in penalties.items():
+            # TODO: move scoring to panalty class (as an interface)
             if penalty.weight * np.exp(penalty.time - current_time) < REMOVE_THRESHOLD:
-                del penaltys[id]
+                del penalties[id]
         
-        score_party = sorted(penaltys.keys(), 
-                       key=lambda x: penaltys[x].weight * np.exp(penaltys[x].time - current_time), 
+        score_party = sorted(penalties.keys(), 
+                       key=lambda x: penalties[x].weight * np.exp(penalties[x].time - current_time), 
                        reverse=True)
         return score_party[:n]
 
-    def check_response(self, response: Dict[str, Dict]) -> bool:
+    def check_responses(self, responses: Dict[str, Dict]) -> bool:
         is_complete = True
-        for peer_id, data in response.items():
+        for peer_id, data in responses.items():
             data_status = data['status']
             if data_status != 'SUCCESSFUL':
                 is_complete = False
@@ -51,7 +56,7 @@ class ErrorHandler:
             else:
                 guilty_id = peer_id
             
-            self.penaltys[guilty_id].add_penalty(data_status)
+            self.penalties[guilty_id].add_penalty(data_status)
         
         return is_complete
 

@@ -245,6 +245,7 @@ class Gateway(Libp2pBase):
 
         # Extract individual signatures and aggregate them
         signs = [i['signature_data'] for i in signatures.values()]
+        # TODO: check if all signed messages are equal
         message = [i['data'] for i in signatures.values()][0]
         encoded_message = json.dumps(message)
         aggregatedSign = TSS.frost_aggregate_signatures(signs, dkg_key['public_shares'], encoded_message, commitments_dict, dkg_key['public_key'])

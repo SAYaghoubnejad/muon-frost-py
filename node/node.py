@@ -211,6 +211,7 @@ class Node(Libp2pBase):
 
         logging.info(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
 
+        # TODO: Add interface
         signature = self.distributed_keys[dkg_id].frost_sign(commitments_list, encoded_message)
 
         data = {
