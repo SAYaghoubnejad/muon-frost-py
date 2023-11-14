@@ -80,7 +80,7 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round1_response)
 
-        is_complete = self.error_handler.check_response(round1_response)
+        is_complete = self.error_handler.check_responses(round1_response)
 
         if not is_complete:
             return {
@@ -113,7 +113,7 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round2_response)
 
-        is_complete = self.error_handler.check_response(round2_response)
+        is_complete = self.error_handler.check_responses(round2_response)
 
         if not is_complete:
             return {
@@ -138,7 +138,7 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round3_response)
                 
-        is_complete = self.error_handler.check_response(round3_response)
+        is_complete = self.error_handler.check_responses(round3_response)
 
         if not is_complete:
             return {
@@ -190,7 +190,7 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 await self.send(destination_address, peer_id, PROTOCOLS_ID[call_method], data, nonces)
 
-                self.error_handler.check_response(nonces)
+                self.error_handler.check_responses(nonces)
 
                 self.__nonces[peer_id] += nonces[peer_id]['nonces']
             await trio.sleep(sleep_time)
@@ -236,7 +236,7 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, signatures)
         
-        is_complete = self.error_handler.check_response(signatures)
+        is_complete = self.error_handler.check_responses(signatures)
 
         if not is_complete:
             return {
