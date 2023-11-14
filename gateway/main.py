@@ -4,7 +4,7 @@ from gateway_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
 from common.dns import DNS
 from common.utils import Utils
-
+from common.decorators import get_valid_random_seed
 import trio
 import logging
 
@@ -28,8 +28,12 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
     ]
 
 
-    # Choose subnet from node peer IDS.
-    party_ids = Utils.get_new_random_subset(party_ids, int(time.time()), 3)
+    # Create a valid random seed.
+    seed = get_valid_random_seed()
+
+    
+    # Choose subnet from node peer IDs.
+    party_ids = Utils.get_new_random_subset(party_ids, seed, 3)
     
     logging.info(f'Chosen peer IDs: {party_ids}')
 
