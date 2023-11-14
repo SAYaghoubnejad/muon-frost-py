@@ -9,38 +9,37 @@ import numpy as np
 class Penalty:
     def __init__(self, id: str) -> None:
         self.id = id
-        self.time = 0
-        self.weight = 0
+        self.__time = 0
+        self.__weight = 0
 
     def add_penalty(self, error_type: str) -> None:
-        self.time = int(time.time())
-        self.weight += PENALTY_LIST[error_type]
+        self.__time = int(time.time())
+        self.__weight += PENALTY_LIST[error_type]
+
+    def get_score(self) -> int:
+        current_time = int(time.time())
+        return self.__weight * np.exp(self.__time - current_time)
 
 class ErrorHandler:
     def __init__(self) -> None:
         self.penalties: Dict[str, Penalty] = {}
 
     # TODO: use dkg_id -> party
-    def get_new_party(self, old_party: List[str], n: int=None) -> List[str]:
-        # TODO
-        if n is None or n > len(old_party):
-            n = len(old_party)
-        
-        penalties = {}
+    def get_new_party(self, old_party: List[str], n: int=None) -> List[str]:       
+        below_threshold = 0
         for peer_id in old_party:
             if peer_id not in self.penalties.keys():
                 self.penalties[peer_id] = Penalty(peer_id)
-                penalties[peer_id] = self.penalties[peer_id].copy()
+            if self.penalties[peer_id].get_score() < REMOVE_THRESHOLD:
+                below_threshold += 1
 
-        current_time = int(time.time())
-        for id, penalty in penalties.items():
-            # TODO: move scoring to panalty class (as an interface)
-            if penalty.weight * np.exp(penalty.time - current_time) < REMOVE_THRESHOLD:
-                del penalties[id]
         
-        score_party = sorted(penalties.keys(), 
-                       key=lambda x: penalties[x].weight * np.exp(penalties[x].time - current_time), 
+        score_party = sorted(old_party, 
+                       key=lambda x: self.penalties[x].get_score(), 
                        reverse=True)
+        
+        if n is None or n >= len(old_party) - below_threshold:
+            n = len(old_party) - below_threshold
         return score_party[:n]
 
     def check_responses(self, responses: Dict[str, Dict]) -> bool:
