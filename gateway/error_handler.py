@@ -1,7 +1,19 @@
 from typing import Dict, List
 from gateway_config import PENALTY_LIST, REMOVE_THRESHOLD
+from common.libp2p_base import Libp2pBase
+from common.dns import DNS
+from common.libp2p_config import PROTOCOLS_ID
+from common.TSS.tss import TSS
+from common.utils import Utils
+from gateway_config import GATEWAY_TOKEN
+from typing import List, Dict
+from libp2p.crypto.secp256k1 import Secp256k1PublicKey
+from libp2p.peer.id import ID as PeerID
+
+from web3 import Web3
 
 import time
+import json
 import numpy as np
 
 
@@ -59,3 +71,54 @@ class ErrorHandler:
         
         return is_complete
 
+    
+    def exclude_complaint(self , complaint , public_keys):
+        complaint_pop_hash = Web3.solidity_keccak(
+            [
+                "uint8", 
+                "uint8", 
+                "uint8", 
+                "uint8",
+                "uint8"
+                ],
+            [
+                public_keys[complaint['complaintant']],
+                public_keys[complaint['malicious']],
+                complaint['encryption_key'],
+                complaint['public_nonce'],
+                complaint['commitment']
+                ],
+            )
+        pop_verification = TSS.complaint_verify(
+            TSS.code_to_pub(public_keys[complaint['complaintant']]),
+            TSS.code_to_pub(public_keys[complaint['malicious']]),
+            TSS.code_to_pub(complaint['encryption_key']),
+            complaint['proof'],
+            complaint_pop_hash
+        )
+        
+        if not pop_verification:
+            return 'Complaintant is malicious'
+        
+        encryption_key = TSS.generate_hkdf_key(complaint['encryption_key'])
+        encrypted_data = b'' #TODO
+        data = json.loads(TSS.decrypt(encrypted_data, encryption_key))
+        round1_broadcasted_data = [] #TODO
+        for round1_data in round1_broadcasted_data: 
+            if round1_data["sender_id"] == complaint['complaintant']:
+                public_fx = round1_data["public_fx"]
+
+                point1 = TSS.calc_poly_point(
+                    list(map(TSS.code_to_pub, public_fx)),
+                    int.from_bytes(self.node_id.to_bytes(), 'big')
+                )
+                
+                point2 = TSS.curve.mul_point(
+                    data["f"], 
+                    TSS.curve.generator
+                )
+
+                if point1 != point2:
+                    return 'Malicious is true'
+                else:
+                    return 'Complaintant is malicious'

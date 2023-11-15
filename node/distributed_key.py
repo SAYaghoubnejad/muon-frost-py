@@ -22,6 +22,52 @@ class DistributedKey:
         self.__data_manager.setup_database(dkg_id)
         self.status = "STARTED"
     
+    
+    def complain(self ,secret_key : ECPrivateKey, partner_id : str, partner_public : ECPublicKey):
+        encryption_joint_key = TSS.pub_to_code(ECPublicKey(
+                TSS.curve.mul_point(
+                    secret_key.d, 
+                    partner_public.W)
+                )
+            )
+        public_key = ECPublicKey(TSS.curve.mul_point(secret_key , TSS.curve.generator))
+        random_nonce = TSS.generate_random_private()
+        public_nonce = ECPublicKey(TSS.curve.mul_point(random_nonce , TSS.curve.generator))
+        commitment   = ECPublicKey(TSS.curve.mul_point(random_nonce , partner_public.W))
+        complaint_pop_hash = Web3.solidity_keccak(
+            [
+                "uint8", 
+                "uint8", 
+                "uint8", 
+                "uint8",
+                "uint8"
+                ],
+            [
+                TSS.pub_to_code(public_key),
+                TSS.pub_to_code(partner_public),
+                encryption_joint_key,
+                TSS.pub_to_code(public_nonce),
+                TSS.pub_to_code(commitment)
+                ],
+        )
+        complaint_pop_sign = TSS.complaint_sign(
+            secret_key, 
+            random_nonce,  
+            int.from_bytes(complaint_pop_hash, "big")
+        )
+        complaint_pop = {
+            'public_nonce' : TSS.pub_to_code(public_nonce), 
+            'commitment' : TSS.pub_to_code(commitment), 
+            'signature' : complaint_pop_sign
+        }
+    
+        return {
+            'complaintant' : self.node_id.to_base58(), 
+            'malicious' : partner_id, 
+            'encryption_key' : encryption_joint_key, 
+            'proof' : complaint_pop
+        }
+
     def round1(self) -> Dict:
         secret_key = TSS.generate_random_private()
         public_key = secret_key.get_public_key()
@@ -151,7 +197,14 @@ class DistributedKey:
                 pass
         send = []
         for id in qualified:
-            encryption_key = TSS.generate_hkdf_key(secret_key , TSS.code_to_pub(partners_public_keys[id]))
+            encryption_joint_key = TSS.pub_to_code(
+                ECPublicKey(
+                    TSS.curve.mul_point(
+                        secret_key.d, 
+                        TSS.code_to_pub(partners_public_keys[id]).W)
+                    )
+                )
+            encryption_key = TSS.generate_hkdf_key(encryption_joint_key)
             id_as_int = int.from_bytes(PeerID.from_base58(id).to_bytes(), 'big')
             data = {
                 'receiver_id': id,
@@ -171,12 +224,20 @@ class DistributedKey:
         partners_public_keys = self.__data_manager.get_data(self.dkg_id, "partners_public_keys")
         round1_broadcasted_data = self.__data_manager.get_data(self.dkg_id, 'round1_broadcasted_data')
         round2_data = []
-
+        complaints = []
         for message in round2_encrypted_data:
             sender_id = message['sender_id']
             receiver_id = message['receiver_id']
             encrypted_data = message['data']
-            encryption_key = TSS.generate_hkdf_key(secret_key , TSS.code_to_pub(partners_public_keys[sender_id]))
+            encryption_joint_key = TSS.pub_to_code(
+                ECPublicKey(
+                    TSS.curve.mul_point(
+                        secret_key.d, 
+                        TSS.code_to_pub(partners_public_keys[sender_id]).W)
+                    )
+                )
+            encryption_key = TSS.generate_hkdf_key(encryption_joint_key)
+            
             # TODO: logging
             assert receiver_id == self.node_id.to_base58(), "ERROR: receiverID does not matched."
 
@@ -195,22 +256,20 @@ class DistributedKey:
                         data["f"], 
                         TSS.curve.generator
                     )
-
+               
                     if point1 != point2:
                         # TODO: handle complient
-                        self.malicious.append({
-                            "id": receiver_id, 
-                            "complient": {
-                                "public_fx": public_fx, 
-                                "f": data["f"]
-                                }
-                            }
-                        )
-
+                        complaints.append(
+                            self.complain(
+                                secret_key, 
+                                sender_id, 
+                                partners_public_keys[sender_id]
+                                )
+                            )
         # TODO: return status
-        if len(self.malicious) != 0:
-            return self.malicious
-        
+        if len(complaints) > 0:
+            return {'STATUS' : 'COMPLAINT' , 'data' : complaints}
+                
         fx: Polynomial = self.__data_manager.get_data(self.dkg_id, "fx")
         my_fragment = fx.evaluate(int.from_bytes(self.node_id.to_bytes(), 'big')).d
         share_fragments = [my_fragment]
