@@ -92,7 +92,7 @@ class ErrorHandler:
         )
         
         if not pop_verification:
-            return 'Complaintant is malicious'
+            return complaint['complaintant']
         
         encryption_key = TSS.generate_hkdf_key(complaint['encryption_key'])
         encrypted_data = b'' #TODO
@@ -113,6 +113,6 @@ class ErrorHandler:
                 )
 
                 if point1 != point2:
-                    return 'Malicious is true'
+                    return complaint['malicious']
                 else:
-                    return 'Complaintant is malicious'
+                    return complaint['complaintant']
