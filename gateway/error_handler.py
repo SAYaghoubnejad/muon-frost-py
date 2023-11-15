@@ -1,14 +1,7 @@
 from typing import Dict, List
 from gateway_config import PENALTY_LIST, REMOVE_THRESHOLD
-from common.libp2p_base import Libp2pBase
-from common.dns import DNS
-from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
-from common.utils import Utils
-from gateway_config import GATEWAY_TOKEN
-from typing import List, Dict
-from libp2p.crypto.secp256k1 import Secp256k1PublicKey
-from libp2p.peer.id import ID as PeerID
+
 
 from web3 import Web3
 
@@ -63,7 +56,7 @@ class ErrorHandler:
                 is_complete = False
 
             if data_status == 'COMPLAINT':
-                # TODO: MHS
+                # TODO: use exclude_complaint function to determine which node is guilty
                 guilty_id = '1'
             else:
                 guilty_id = peer_id
@@ -73,7 +66,7 @@ class ErrorHandler:
         return is_complete
 
     
-    def exclude_complaint(self , complaint , public_keys):
+    def exclude_complaint(self, complaint, public_keys):
         complaint_pop_hash = Web3.solidity_keccak(
             [
                 "uint8", 
