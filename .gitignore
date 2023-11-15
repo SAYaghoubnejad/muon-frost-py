@@ -13,7 +13,7 @@ __pycache__
 # Built Visual Studio Code Extensions
 *.vsix
 
-*_config.py
+temp_file*
 
 
 venv

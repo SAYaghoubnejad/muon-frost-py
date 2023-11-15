@@ -41,7 +41,7 @@ class Utils:
     
     
     @staticmethod
-    @seed_validation_decorator
+    #@seed_validation_decorator
     def get_new_random_subset(list: List, seed: int, subset_size: int) -> None:
         random.seed(seed)  
         random_subset = random.sample(list, subset_size)
