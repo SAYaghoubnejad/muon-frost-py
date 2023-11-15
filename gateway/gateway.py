@@ -48,7 +48,7 @@ class Gateway(Libp2pBase):
                     round2_data.append(entry)
         return round2_data
 
-
+    # TODO: update app_name
     async def request_dkg(self, threshold: int, n: int, party: List[str], app_name: str) -> Dict:
         """
         Initiates the DKG protocol with the specified parties.
@@ -208,7 +208,8 @@ class Gateway(Libp2pBase):
             commitment = self.__nonces[peer_id].pop()
             commitments_dict[peer_id] = commitment
         return commitments_dict
-       
+    
+
     async def request_signature(self, dkg_key: Dict, sign_party: List[str]) -> Dict:
         """
         Requests signatures from the specified parties for a given message.

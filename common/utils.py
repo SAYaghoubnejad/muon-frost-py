@@ -4,6 +4,7 @@ import uuid
 import random
 from typing import List
 
+from common.decorators import seed_validation_decorator
 
 class Utils:
     def __init__(self) -> None:
@@ -38,8 +39,9 @@ class Utils:
         """
         return str(uuid.uuid4())
     
-    # TODO: add a decorator to verify random seed
+    
     @staticmethod
+    #@seed_validation_decorator
     def get_new_random_subset(list: List, seed: int, subset_size: int) -> None:
         random.seed(seed)  
         random_subset = random.sample(list, subset_size)
