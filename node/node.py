@@ -147,11 +147,7 @@ class Node(Libp2pBase):
         
         round3_data = self.distributed_keys[dkg_id].round3(send_data)
         
-        data = {
-            'data': round3_data,
-            "status": "SUCCESSFUL",
-        }
-        response = json.dumps(data).encode("utf-8")
+        response = json.dumps(round3_data).encode("utf-8")
         try:
             await unpacked_stream.stream.write(response)
             logging.info(f'{sender_id}{PROTOCOLS_ID["round3"]} Sent message: {response.decode()}')

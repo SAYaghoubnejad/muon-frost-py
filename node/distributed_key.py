@@ -268,7 +268,7 @@ class DistributedKey:
                             )
         # TODO: return status
         if len(complaints) > 0:
-            return {'STATUS' : 'COMPLAINT' , 'data' : complaints}
+            return {'status' : 'COMPLAINT' , 'data' : complaints}
                 
         fx: Polynomial = self.__data_manager.get_data(self.dkg_id, "fx")
         my_fragment = fx.evaluate(int.from_bytes(self.node_id.to_bytes(), 'big')).d
@@ -290,8 +290,10 @@ class DistributedKey:
         self.dkg_key_pair = {"share": share, "dkg_public_key": dkg_public_key}
 
         result = {
-            "dkg_public_key": TSS.pub_to_code(dkg_public_key),
-            "public_share" : TSS.pub_to_code(share.get_public_key()),
+            'data': {
+                "dkg_public_key": TSS.pub_to_code(dkg_public_key),
+                "public_share" : TSS.pub_to_code(share.get_public_key()),
+            },
             "status": "SUCCESSFUL"
         }
         return result

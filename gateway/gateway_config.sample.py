@@ -1,4 +1,4 @@
-PRIVATE = 'c915ec16580f7217e24e06cbff8a6b92ceea0cffae3ce74e8e797f57e0f3f66d'
+PRIVATE = ''
 
 PENALTY_LIST = {
     'SUCCESSFUL': 0,
