@@ -6,7 +6,7 @@ import numpy as np
 
 
 # TODO: Use data manager to store information
-# TODO: Penalty should be abstract.
+# TODO: Penalty should be
 class Penalty:
     def __init__(self, id: str) -> None:
         self.id = id
@@ -21,7 +21,7 @@ class Penalty:
         current_time = int(time.time())
         return self.__weight * np.exp(self.__time - current_time)
 
-class ResponseValidator:
+class ErrorHandler:
     def __init__(self) -> None:
         self.penalties: Dict[str, Penalty] = {}
 
@@ -43,7 +43,7 @@ class ResponseValidator:
             n = len(old_party) - below_threshold
         return score_party[:n]
 
-    def validate_responses(self, responses: Dict[str, Dict]) -> bool:
+    def check_responses(self, responses: Dict[str, Dict]) -> bool:
         is_complete = True
         for peer_id, data in responses.items():
             data_status = data['status']
