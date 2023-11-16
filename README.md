@@ -19,7 +19,7 @@ $ source venv/bin/activate
 (venv) $ pip install -r requirements.txt
 ```
 
-Note: The required Python version is `3.10`.
+**Note:** The required Python version is `3.10`.
 
 ## How to Run
 
@@ -46,5 +46,8 @@ The gateway takes 4 parameters as input:
 2. `threshold`: The threshold of the FROST algorithm, which is an integer (\(t \leq n\)).
 3. `n`: The number of nodes cooperating with the gateway to generate a distributed key (\(n \leq m\)).
 4. `number of signatures`: The number of signatures requested by the gateway upon completion of the Distributed Key Generation (DKG).
+
+
+**Note:** Logs for each node and the gateway are stored in the `./logs` directory.
 
 ---
