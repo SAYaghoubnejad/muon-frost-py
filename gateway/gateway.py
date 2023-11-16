@@ -1,9 +1,9 @@
 from common.libp2p_base import Libp2pBase
 from common.dns import DNS
-from common.temp_config import PROTOCOLS_ID
+from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
-from gateway.temp_config import GATEWAY_TOKEN
+from gateway.gateway_config import GATEWAY_TOKEN
 from error_handler import ErrorHandler
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey

@@ -1,6 +1,6 @@
 import time
 from gateway import Gateway
-from gateway.temp_config import PRIVATE
+from gateway.gateway_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
 from common.dns import DNS
 from common.utils import Utils

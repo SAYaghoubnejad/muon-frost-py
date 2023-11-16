@@ -1,5 +1,5 @@
 from common.libp2p_base import Libp2pBase
-from common.temp_config import PROTOCOLS_ID
+from common.libp2p_config import PROTOCOLS_ID
 from common.dns import DNS
 from common.data_manager import DataManager
 from common.utils import Utils
