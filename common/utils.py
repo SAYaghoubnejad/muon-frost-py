@@ -3,9 +3,7 @@ import logging
 import uuid
 import random
 from typing import List
-
-from common.decorators import seed_validation_decorator
-
+import requests
 class Utils:
     def __init__(self) -> None:
         pass
@@ -41,10 +39,25 @@ class Utils:
     
     
     @staticmethod
-    #@seed_validation_decorator
     def get_new_random_subset(list: List, seed: int, subset_size: int) -> None:
         random.seed(seed)  
         random_subset = random.sample(list, subset_size)
         return random_subset
+
+    @staticmethod
+    def get_last_block_hash() -> str:
+        blockchain_url = "https://blockchain.info/latestblock"
+        try:
+            response = requests.get(blockchain_url)
+            if response.status_code == 200:
+                latest_block_data = response.json()
+                last_block_hash = latest_block_data["hash"]
+                return last_block_hash
+            else:
+                logging.error(f"Error: Unable to fetch the latest block (status code {response.status_code})")
+                return None
+        except Exception as e:
+            logging.error(f"Unhandled exception: {e}")
+            return None
 
 
