@@ -2,7 +2,7 @@ from common.dns import DNS
 from common.data_manager import DataManager
 from common.configuration_settings import ConfigurationSettings
 from node import Node
-from node.node_config import SECRETS
+from node_config import SECRETS
 
 import logging
 import sys

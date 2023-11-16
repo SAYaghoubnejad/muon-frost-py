@@ -1,6 +1,6 @@
 import time
 from gateway import Gateway
-from gateway.gateway_config import PRIVATE
+from gateway_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
 from common.dns import DNS
 from common.utils import Utils
@@ -65,9 +65,9 @@ async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, n
         for i in range(num_signs):
             logging.info(f'Get signature {i} for app {app_name} with DKG id {dkg_id}')
 
-            now = int(time.time())
+            now = time.time()
             signature = await gateway.request_signature(dkg_key, threshold)
-            then = int(time.time())
+            then = time.time()
 
             # Log the generated signature
             logging.info(f'Requesting signature {i} takes {then - now} seconds')
