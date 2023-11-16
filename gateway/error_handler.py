@@ -1,5 +1,5 @@
 from typing import Dict, List
-from gateway_config import PENALTY_LIST, REMOVE_THRESHOLD
+from gateway.temp_config import PENALTY_LIST, REMOVE_THRESHOLD
 from common.TSS.tss import TSS
 
 
@@ -61,7 +61,11 @@ class ErrorHandler:
             else:
                 guilty_id = peer_id
             
-            self.penalties[guilty_id].add_penalty(data_status)
+            try:
+                self.penalties[guilty_id].add_penalty(data_status)
+            except:
+                self.penalties[guilty_id] = Penalty(peer_id)
+                self.penalties[guilty_id].add_penalty(data_status)
         
         return is_complete
 

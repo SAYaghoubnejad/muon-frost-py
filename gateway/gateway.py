@@ -1,9 +1,9 @@
 from common.libp2p_base import Libp2pBase
 from common.dns import DNS
-from common.libp2p_config import PROTOCOLS_ID
+from common.temp_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
-from gateway_config import GATEWAY_TOKEN
+from gateway.temp_config import GATEWAY_TOKEN
 from error_handler import ErrorHandler
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
@@ -159,6 +159,7 @@ class Gateway(Libp2pBase):
             'dkg_id': dkg_id,
             'public_key': public_key,
             'public_shares': public_shares,
+            'party': party,
             'result': 'SUCCESSFUL'
         }
         return response
@@ -183,7 +184,7 @@ class Gateway(Libp2pBase):
                 "request_id": f"{req_id}_{call_method}",
                 'gateway_authorization': GATEWAY_TOKEN,
                 "parameters": {
-                    'number_of_nonces': min_number_of_nonces * 5,
+                    'number_of_nonces': min_number_of_nonces * 10,
                     },
                 }
                 nonces = {}
@@ -210,16 +211,18 @@ class Gateway(Libp2pBase):
         return commitments_dict
     
 
-    async def request_signature(self, dkg_key: Dict, sign_party: List[str]) -> Dict:
+    async def request_signature(self, dkg_key: Dict, sign_party_num: int) -> Dict:
         """
         Requests signatures from the specified parties for a given message.
 
         :param dkg_key: The DKG key information.
-        :param sign_party: List of parties to sign the message.
+        :param sign_party_num: number of parties to sign the message.
         :return: The aggregated signature.
         """
         call_method = "sign"
         dkg_id = dkg_key['dkg_id']
+        party = dkg_key['party']
+        sign_party = self.error_handler.get_new_party(party, sign_party_num)
         commitments_dict = self.get_commitments(sign_party)
         # TODO: add a function or wrapper to handle data
         data = {

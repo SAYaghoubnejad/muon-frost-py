@@ -1,9 +1,15 @@
+from libp2p.crypto.secp256k1 import create_new_key_pair
+from libp2p.peer.id import ID as PeerID
+
 import importlib
 import logging
 import uuid
+import secrets
 import random
-from typing import List
+from typing import List, Dict
 import requests
+
+
 class Utils:
     def __init__(self) -> None:
         pass
@@ -59,5 +65,15 @@ class Utils:
         except Exception as e:
             logging.error(f"Unhandled exception: {e}")
             return None
-
-
+        
+    @staticmethod
+    def generate_secret_and_peer_id() -> Dict[str, str]:
+        secret = secrets.token_bytes(32)
+        key_pair = create_new_key_pair(secret)
+        peer_id: PeerID = PeerID.from_pubkey(key_pair.public_key)
+        return {
+            'secret': secret.hex(),
+            'private_key': key_pair.private_key.serialize().hex(),
+            'public_key': key_pair.public_key.serialize().hex(),
+            'peer_id': peer_id.to_base58()
+        }

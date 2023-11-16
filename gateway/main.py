@@ -1,15 +1,40 @@
 import time
 from gateway import Gateway
-from gateway_config import PRIVATE
+from gateway.temp_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
 from common.dns import DNS
 from common.utils import Utils
 from common.decorators import get_valid_random_seed
+from typing import List
+
+import sys
 import trio
 import logging
 
+async def run_dkg(gateway : Gateway, all_nodes: List[str], threshold: int, n: int, app_name: str, seed: int=42) -> None:
+    # Choose subnet from node peer IDs.
+    party_ids = Utils.get_new_random_subset(all_nodes, seed, n)
+    logging.info(f'Chosen peer IDs: {party_ids}')
 
-async def run(gateway_id: str, threshold: int, n: int) -> None:
+    # Begin DKG protocol
+    is_completed = False
+    dkg_key = None
+    while not is_completed:
+        party_ids = gateway.error_handler.get_new_party(party_ids)
+        if len(party_ids) < threshold:
+            dkg_id = dkg_key['dkg_id']
+            logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of availadle nodes')
+            exit()
+        
+        dkg_key = await gateway.request_dkg(threshold, n, party_ids, app_name)
+        result = dkg_key['result']
+        logging.info(f'The DKG result is {result}')
+        if result == 'SUCCESSFUL':
+            is_completed = True
+
+    return dkg_key
+
+async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, num_signs: int) -> None:
     """
     Sets up and runs a gateway node in a distributed network using libp2p.
 
@@ -20,57 +45,33 @@ async def run(gateway_id: str, threshold: int, n: int) -> None:
     dns = DNS()
 
     # List of peer IDs in the network
-    party_ids = [
-        '16Uiu2HAm7Sx71kCEvgK8drUWZACPhU2WiUftZPSKjbAC5accWqwE',
-        '16Uiu2HAmBep4CggnrJX36oQ1S5z8T9VTrjXS66Tskx2QzQJonkr2',
-        '16Uiu2HAmUSf3PjDQ6Y1eBPU3TbDFXQzsf9jmj4qyc7wXMGKceo2K',
-        '16Uiu2HAm4zhoM9y3oZnSVr3z3sL2SmEDbMfB6k3pS548o2jY5PRH'
-    ]
-
-
-    # Create a valid random seed.
-    #seed = get_valid_random_seed()
-
-    
-    # Choose subnet from node peer IDs.
-    party_ids = Utils.get_new_random_subset(party_ids, int(time.time()), 3)
-    
-    logging.info(f'Chosen peer IDs: {party_ids}')
+    all_nodes = dns.get_all_nodes(total_node_number)
 
     # Initialize the Gateway with DNS lookup for the current node
-    gateway = Gateway(dns.lookup(gateway_id), PRIVATE, dns)
+    gateway = Gateway(dns.lookup_gatewat(gateway_id), PRIVATE, dns)
     app_name = 'sample_oracle'
 
     async with trio.open_nursery() as nursery:
         # Start gateway and maintain nonce values for each peer
         nursery.start_soon(gateway.run)
-        nursery.start_soon(gateway.maintain_nonces, party_ids)
+
+        nursery.start_soon(gateway.maintain_nonces, all_nodes)
         
-        # Begin DKG protocol
-        is_completed = False
-        dkg_key = None
-        while not is_completed:
-            party_ids = gateway.error_handler.get_new_party(party_ids)
-            if len(party_ids) < threshold:
-                logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of availadle nodes')
-                exit()
-            
-            dkg_key = await gateway.request_dkg(threshold, n, party_ids, app_name)
-            result = dkg_key['result']
-            logging.info(f'The DKG result is {result}')
-            if result == 'SUCCESSFUL':
-                is_completed = True
-
-        dkg_id = dkg_key['dkg_id']
-        logging.info(f'Get signature for app {app_name} with DKG id {dkg_id}')
-
-        await trio.sleep(3)
+        dkg_key = await run_dkg(gateway, all_nodes, threshold, n, app_name)
+        await trio.sleep(5)
 
         # Request signature using the generated DKG key
-        signature = await gateway.request_signature(dkg_key, party_ids)
+        dkg_id = dkg_key['dkg_id']
+        for i in range(num_signs):
+            logging.info(f'Get signature {i} for app {app_name} with DKG id {dkg_id}')
 
-        # Log the generated signature
-        logging.info(f'Signature: {signature}')
+            now = int(time.time())
+            signature = await gateway.request_signature(dkg_key, threshold)
+            then = int(time.time())
+
+            # Log the generated signature
+            logging.info(f'Requesting signature {i} takes {then - now} seconds')
+            logging.info(f'Signature: {signature}')
 
         # Stop the gateway
         gateway.stop()
@@ -82,14 +83,16 @@ if __name__ == "__main__":
     # Define the logging configurations
     ConfigurationSettings.set_logging_options('logs', 'gateway.log')
 
-    # Define the node identifier and DKG parameters
-    node_id = '16Uiu2HAmGVUb3nZ3yaKNpt5kH7KZccKrPaHmG1qTB48QvLdr7igH'
-    dkg_threshold = 2
-    num_parties = 3
+    # Define the gateway identifier and DKG parameters
+    gateway_peer_id = '16Uiu2HAmGVUb3nZ3yaKNpt5kH7KZccKrPaHmG1qTB48QvLdr7igH'
+    total_node_number = int(sys.argv[1])
+    dkg_threshold = int(sys.argv[2])
+    num_parties = int(sys.argv[3])
+    num_signs = int(sys.argv[4])
 
     try:
         # Run the gateway with specified parameters
-        trio.run(run, node_id, dkg_threshold, num_parties)
+        trio.run(run, gateway_peer_id, total_node_number, dkg_threshold, num_parties, num_signs)
     except KeyboardInterrupt:
         # Handle graceful shutdown on keyboard interrupt
         pass
