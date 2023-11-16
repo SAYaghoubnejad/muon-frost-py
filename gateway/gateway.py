@@ -174,6 +174,7 @@ class Gateway(Libp2pBase):
         """
         call_method = "generate_nonces"
         while True:
+            # TODO: get the number of thread as an input and use multiple thread to get nonces
             for peer_id in peer_ids:
                 if len(self.__nonces.setdefault(peer_id, [])) >= min_number_of_nonces:
                     continue

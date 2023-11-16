@@ -35,6 +35,8 @@ First, run the nodes. Type the following command in `m` terminals to initiate th
 (venv) $ python node/main.py [0-m]
 ```
 
+After executing the command, wait until the node setup is complete. The setup is finished when the node API is printed along with a message indicating **Waiting for incoming connections...**
+
 Finally, run the gateway in the last terminal:
 
 ```bash
