@@ -151,7 +151,7 @@ class Gateway(Libp2pBase):
                 assert data1['data']['dkg_public_key'] == data2['data']['dkg_public_key'],\
                     f'The DKG key of node {id1} is not consistance with the DGK key of node {id2}'
         
-        public_key = round3_response[party[0]]['data']['dkg_public_key']
+        public_key = list(round3_response.values())[0]['data']['dkg_public_key']
         public_shares = {}
         for id, data in round3_response.items():
             public_shares[int.from_bytes(PeerID.from_base58(id).to_bytes(), 'big')] = data['data']['public_share']
@@ -176,7 +176,8 @@ class Gateway(Libp2pBase):
         while True:
             # TODO: get the number of thread as an input and use multiple thread to get nonces
             for peer_id in peer_ids:
-                if len(self.__nonces.setdefault(peer_id, [])) >= min_number_of_nonces:
+                self.__nonces.setdefault(peer_id, [])
+                if len(self.__nonces[peer_id]) >= min_number_of_nonces:
                     continue
 
                 req_id = Utils.generate_random_uuid()
@@ -192,9 +193,11 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 await self.send(destination_address, peer_id, PROTOCOLS_ID[call_method], data, nonces)
 
-                self.error_handler.check_responses(nonces)
+                is_completed = self.error_handler.check_responses(nonces)
 
-                self.__nonces[peer_id] += nonces[peer_id]['nonces']
+                if is_completed:
+                    self.__nonces[peer_id] += nonces[peer_id]['nonces']
+
             await trio.sleep(sleep_time)
 
     def get_commitments(self, party: List[str]) -> Dict:

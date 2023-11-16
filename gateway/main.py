@@ -56,9 +56,10 @@ async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, n
         nursery.start_soon(gateway.run)
 
         nursery.start_soon(gateway.maintain_nonces, all_nodes)
+        await trio.sleep(2 * total_node_number)
         
         dkg_key = await run_dkg(gateway, all_nodes, threshold, n, app_name)
-        await trio.sleep(2 * total_node_number)
+        await trio.sleep(total_node_number)
 
         # Request signature using the generated DKG key
         dkg_id = dkg_key['dkg_id']
