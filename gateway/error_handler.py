@@ -11,7 +11,7 @@ import numpy as np
 
 
 # TODO: Use data manager to store information
-# TODO: Penalty should be
+# TODO: Penalty should be Interface
 class Penalty:
     def __init__(self, id: str) -> None:
         self.id = id
