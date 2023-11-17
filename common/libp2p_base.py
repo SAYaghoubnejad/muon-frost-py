@@ -97,6 +97,12 @@ class Libp2pBase:
         """
         self.__is_running = False
 
+    async def send_with_semaphore(self, semaphore, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
+                   message: Dict, result: Dict = None, timeout: float = 5.0) -> None:
+        async with semaphore:
+            await self.send(destination_address, destination_peer_id, protocol_id,
+                   message, result, timeout)
+
     async def send(self, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
                    message: Dict, result: Dict = None, timeout: float = 5.0) -> None:
         """
@@ -110,6 +116,7 @@ class Libp2pBase:
         result (Dict, optional): A dictionary to store response from the destination. Defaults to None.
         timeout (float, optional): The timeout for the connection attempt in seconds. Defaults to 5.0.
         """
+        
         destination = f"/ip4/{destination_address['ip']}/tcp/{destination_address['port']}/p2p/{destination_peer_id}"
         maddr = multiaddr.Multiaddr(destination)
         info = info_from_p2p_addr(maddr)

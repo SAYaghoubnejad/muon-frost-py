@@ -20,7 +20,7 @@ class Gateway(Libp2pBase):
     protocol over a libp2p network.
     """
 
-    def __init__(self, address: Dict[str, str], secret: str, dns: DNS) -> None:
+    def __init__(self, address: Dict[str, str], secret: str, dns: DNS, max_workers:int = 3) -> None:
         """
         Initialize a new Gateway instance.
         
@@ -32,6 +32,7 @@ class Gateway(Libp2pBase):
         self.dns_resolver: DNS = dns
         self.__nonces: Dict[str, list[Dict]] = {}
         self.error_handler = ErrorHandler()
+        self.semaphore = trio.Semaphore(max_workers)
 
     def _gather_round2_data(self, peer_id: str, data: Dict) -> List:
         """
@@ -78,7 +79,7 @@ class Gateway(Libp2pBase):
         async with trio.open_nursery() as nursery:
             for peer_id in party:
                 destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round1_response)
+                nursery.start_soon(self.send_with_semaphore, self.semaphore , destination_address, peer_id, PROTOCOLS_ID[call_method], data, round1_response)
 
         is_complete = self.error_handler.check_responses(round1_response)
 
@@ -111,7 +112,7 @@ class Gateway(Libp2pBase):
         async with trio.open_nursery() as nursery:
             for peer_id in party:
                 destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round2_response)
+                nursery.start_soon(self.send_with_semaphore, self.semaphore, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round2_response)
 
         is_complete = self.error_handler.check_responses(round2_response)
 
@@ -124,6 +125,7 @@ class Gateway(Libp2pBase):
         call_method = "round3"
         
         round3_response = {}
+        
         async with trio.open_nursery() as nursery:
             for peer_id in party:
                 data = {
@@ -136,7 +138,7 @@ class Gateway(Libp2pBase):
                     },
                 }
                 destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round3_response)
+                nursery.start_soon(self.send_with_semaphore, self.semaphore, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round3_response)
                 
         is_complete = self.error_handler.check_responses(round3_response)
 
@@ -191,7 +193,7 @@ class Gateway(Libp2pBase):
                 }
                 nonces = {}
                 destination_address = self.dns_resolver.lookup(peer_id)
-                await self.send(destination_address, peer_id, PROTOCOLS_ID[call_method], data, nonces)
+                await self.send_with_semaphore(self.semaphore,destination_address, peer_id, PROTOCOLS_ID[call_method], data, nonces)
 
                 is_completed = self.error_handler.check_responses(nonces)
 
@@ -242,7 +244,7 @@ class Gateway(Libp2pBase):
         async with trio.open_nursery() as nursery:
             for peer_id in sign_party:
                 destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send, destination_address, peer_id, PROTOCOLS_ID[call_method], data, signatures)
+                nursery.start_soon(self.send_with_semaphore, self.semaphore, destination_address, peer_id, PROTOCOLS_ID[call_method], data, signatures)
         
         is_complete = self.error_handler.check_responses(signatures)
 

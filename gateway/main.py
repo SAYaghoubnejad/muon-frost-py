@@ -48,11 +48,12 @@ async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, n
     all_nodes = dns.get_all_nodes(total_node_number)
 
     # Initialize the Gateway with DNS lookup for the current node
-    gateway = Gateway(dns.lookup_gatewat(gateway_id), PRIVATE, dns)
+    gateway = Gateway(dns.lookup_gatewat(gateway_id), PRIVATE, dns, max_workers = 3)
     app_name = 'sample_oracle'
 
     async with trio.open_nursery() as nursery:
         # Start gateway and maintain nonce values for each peer
+        # TODO: Replace trio sleeps with gateway.add_task(.... , sequential = None) 
         nursery.start_soon(gateway.run)
 
         nursery.start_soon(gateway.maintain_nonces, all_nodes)
