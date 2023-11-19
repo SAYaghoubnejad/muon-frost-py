@@ -97,13 +97,17 @@ class Libp2pBase:
         """
         self.__is_running = False
 
-    async def send_with_semaphore(self, semaphore, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
-                   message: Dict, result: Dict = None, timeout: float = 5.0) -> None:
-        async with semaphore:
-            await self.send(destination_address, destination_peer_id, protocol_id,
-                   message, result, timeout)
-
     async def send(self, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
+                   message: Dict, result: Dict = None, timeout: float = 5.0, semaphore: trio.Semaphore = None) -> None:
+        if semaphore is not None:
+            async with semaphore:
+                await self.__send(destination_address, destination_peer_id, protocol_id,
+                    message, result, timeout)
+        else:
+            await self.__send(destination_address, destination_peer_id, protocol_id,
+                    message, result, timeout)
+
+    async def __send(self, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
                    message: Dict, result: Dict = None, timeout: float = 5.0) -> None:
         """
         Sends a message to a destination peer using a specified protocol.
@@ -120,7 +124,6 @@ class Libp2pBase:
         destination = f"/ip4/{destination_address['ip']}/tcp/{destination_address['port']}/p2p/{destination_peer_id}"
         maddr = multiaddr.Multiaddr(destination)
         info = info_from_p2p_addr(maddr)
-
         with trio.move_on_after(timeout) as cancel_scope:
             try:
                 # Establish connection with the destination peer
@@ -145,7 +148,7 @@ class Libp2pBase:
                     logging.info(f"{destination_peer_id}{protocol_id} Received response: {result[destination_peer_id]}")
 
             except Exception as e:
-                logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Exception occurred: ', exc_info=True)
+                logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Exception occurred: {type(e).__name__}: {e}')
                 response = {
                     "status": "ERROR",
                     "error": f"An exception occurred: {type(e).__name__}: {e}",
@@ -153,12 +156,12 @@ class Libp2pBase:
                 if result is not None:
                     result[destination_peer_id] = response
 
-            if cancel_scope.cancelled_caught:
-                logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Timeout error occurred')
-                timeout_response = {
-                    "status": "TIMEOUT",
-                    "error": "Communication timed out",
-                }
-                if result is not None:
-                    result[destination_peer_id] = timeout_response
+        if cancel_scope.cancelled_caught:
+            logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Timeout error occurred')
+            timeout_response = {
+                "status": "TIMEOUT",
+                "error": "Communication timed out",
+            }
+            if result is not None:
+                result[destination_peer_id] = timeout_response
 

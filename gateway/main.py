@@ -8,6 +8,7 @@ from common.decorators import get_valid_random_seed
 from typing import List
 
 import sys
+
 import trio
 import logging
 
@@ -48,7 +49,9 @@ async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, n
     all_nodes = dns.get_all_nodes(total_node_number)
 
     # Initialize the Gateway with DNS lookup for the current node
-    gateway = Gateway(dns.lookup_gatewat(gateway_id), PRIVATE, dns, max_workers = 3)
+    # TODO: Findout how to handle the tradeoff between number of semaphores and timeout..
+    gateway = Gateway(dns.lookup_gateway(gateway_id), PRIVATE, 
+                               dns, max_workers = 0, default_timeout = 1000)
     app_name = 'sample_oracle'
 
     async with trio.open_nursery() as nursery:
@@ -57,10 +60,8 @@ async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, n
         nursery.start_soon(gateway.run)
 
         nursery.start_soon(gateway.maintain_nonces, all_nodes)
-        await trio.sleep(2 * total_node_number)
         
         dkg_key = await run_dkg(gateway, all_nodes, threshold, n, app_name)
-        await trio.sleep(total_node_number)
 
         # Request signature using the generated DKG key
         dkg_id = dkg_key['dkg_id']
@@ -84,6 +85,9 @@ if __name__ == "__main__":
 
     # Define the logging configurations
     ConfigurationSettings.set_logging_options('logs', 'gateway.log')
+    
+    # Increase the string max limit for integer string conversion
+    sys.set_int_max_str_digits(0)
 
     # Define the gateway identifier and DKG parameters
     gateway_peer_id = '16Uiu2HAmGVUb3nZ3yaKNpt5kH7KZccKrPaHmG1qTB48QvLdr7igH'

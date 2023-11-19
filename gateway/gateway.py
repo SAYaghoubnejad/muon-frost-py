@@ -20,7 +20,7 @@ class Gateway(Libp2pBase):
     protocol over a libp2p network.
     """
 
-    def __init__(self, address: Dict[str, str], secret: str, dns: DNS, max_workers:int = 3) -> None:
+    def __init__(self, address: Dict[str, str], secret: str, dns: DNS, max_workers:int = 0, default_timeout:int = 200) -> None:
         """
         Initialize a new Gateway instance.
         
@@ -32,8 +32,11 @@ class Gateway(Libp2pBase):
         self.dns_resolver: DNS = dns
         self.__nonces: Dict[str, list[Dict]] = {}
         self.error_handler = ErrorHandler()
-        self.semaphore = trio.Semaphore(max_workers)
-
+        if max_workers != 0:
+            self.semaphore = trio.Semaphore(max_workers)
+        else:
+            self.semaphore = None
+        self.default_timeout = default_timeout
     def _gather_round2_data(self, peer_id: str, data: Dict) -> List:
         """
         Collects round 2 data for a specific peer_id.
@@ -79,7 +82,8 @@ class Gateway(Libp2pBase):
         async with trio.open_nursery() as nursery:
             for peer_id in party:
                 destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send_with_semaphore, self.semaphore , destination_address, peer_id, PROTOCOLS_ID[call_method], data, round1_response)
+                nursery.start_soon(self.send, destination_address, peer_id, 
+                                   PROTOCOLS_ID[call_method], data, round1_response, self.default_timeout, self.semaphore)
 
         is_complete = self.error_handler.check_responses(round1_response)
 
@@ -112,7 +116,8 @@ class Gateway(Libp2pBase):
         async with trio.open_nursery() as nursery:
             for peer_id in party:
                 destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send_with_semaphore, self.semaphore, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round2_response)
+                nursery.start_soon(self.send, destination_address, peer_id, 
+                                   PROTOCOLS_ID[call_method], data, round2_response, self.default_timeout, self.semaphore)
 
         is_complete = self.error_handler.check_responses(round2_response)
 
@@ -138,7 +143,8 @@ class Gateway(Libp2pBase):
                     },
                 }
                 destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send_with_semaphore, self.semaphore, destination_address, peer_id, PROTOCOLS_ID[call_method], data, round3_response)
+                nursery.start_soon(self.send, destination_address, peer_id, 
+                                   PROTOCOLS_ID[call_method], data, round3_response, self.default_timeout, self.semaphore)
                 
         is_complete = self.error_handler.check_responses(round3_response)
 
@@ -193,7 +199,8 @@ class Gateway(Libp2pBase):
                 }
                 nonces = {}
                 destination_address = self.dns_resolver.lookup(peer_id)
-                await self.send_with_semaphore(self.semaphore,destination_address, peer_id, PROTOCOLS_ID[call_method], data, nonces)
+                await self.send(destination_address, peer_id,
+                                 PROTOCOLS_ID[call_method], data, nonces, self.default_timeout, self.semaphore)
 
                 is_completed = self.error_handler.check_responses(nonces)
 
@@ -202,17 +209,27 @@ class Gateway(Libp2pBase):
 
             await trio.sleep(sleep_time)
 
-    def get_commitments(self, party: List[str]) -> Dict:
+    async def get_commitments(self, party: List[str]) -> Dict:
         """
         Retrieves a dictionary of commitments from the nonces for each party.
 
         :param party: List of party identifiers.
         :return: A dictionary of commitments for each party.
         """
-        # TODO: what if nonces are not ready? (race condition!)
         commitments_dict = {}
+        max_retries = 1000
         for peer_id in party:
-            commitment = self.__nonces[peer_id].pop()
+            retries = 0
+            while not self.__nonces.get(peer_id):
+                retries +=1
+                await trio.sleep(0.2)
+                if retries >= max_retries:
+                    logging.warning('Max tries exceeded in get commitments function.')
+                    break
+            if retries >= max_retries:
+                commitment = []
+            else:
+                commitment = self.__nonces[peer_id].pop()
             commitments_dict[peer_id] = commitment
         return commitments_dict
     
@@ -229,7 +246,7 @@ class Gateway(Libp2pBase):
         dkg_id = dkg_key['dkg_id']
         party = dkg_key['party']
         sign_party = self.error_handler.get_new_party(party, sign_party_num)
-        commitments_dict = self.get_commitments(sign_party)
+        commitments_dict = await self.get_commitments(sign_party)
         # TODO: add a function or wrapper to handle data
         data = {
         "method": call_method,
@@ -244,7 +261,8 @@ class Gateway(Libp2pBase):
         async with trio.open_nursery() as nursery:
             for peer_id in sign_party:
                 destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send_with_semaphore, self.semaphore, destination_address, peer_id, PROTOCOLS_ID[call_method], data, signatures)
+                nursery.start_soon(self.send, destination_address, peer_id, 
+                                   PROTOCOLS_ID[call_method], data, signatures, self.default_timeout, self.semaphore)
         
         is_complete = self.error_handler.check_responses(signatures)
 

@@ -8,6 +8,9 @@ import logging
 import sys
 import trio
 
+
+
+
 async def run(node_number: int) -> None:
     dns = DNS()
     id = dns.get_all_nodes()[node_number]
@@ -21,10 +24,11 @@ if __name__ == "__main__":
     # Define the logging configurations
     ConfigurationSettings.set_logging_options \
                         ('logs', f'node{sys.argv[1]}.log')
+    
+    # Increase the string max limit for integer string conversion
+    sys.set_int_max_str_digits(0)
 
     node_number = int(sys.argv[1])
-    t = 2
-    n = 3
     try:
         # Run the libp2p node
         trio.run(run, node_number)

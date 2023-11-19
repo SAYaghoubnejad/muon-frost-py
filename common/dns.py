@@ -425,7 +425,7 @@ class DNS:
                 'port': '5049',
                 'public_key': '0802122103ff9bec7a9cc8b27a069784daa0e15a5f93a957567e3a562f85653f58bf7712a6'}}
         
-    def lookup_gatewat(self, peer_id:str):
+    def lookup_gateway(self, peer_id:str):
         return self.gateways.get(peer_id, None)
 
     def lookup(self, peer_id: str):
