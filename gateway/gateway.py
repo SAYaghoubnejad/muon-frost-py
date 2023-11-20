@@ -218,13 +218,11 @@ class Gateway(Libp2pBase):
         """
         commitments_dict = {}
         with trio.move_on_after(timeout) as cancel_scope:
-            
             for peer_id in party:
                 while not self.__nonces.get(peer_id):
                     await trio.sleep(0.1)
-                        
-                else:
-                    commitment = self.__nonces[peer_id].pop()
+                
+                commitment = self.__nonces[peer_id].pop()
                 commitments_dict[peer_id] = commitment
         
         if cancel_scope.cancelled_caught:
