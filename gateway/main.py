@@ -21,7 +21,7 @@ async def run_dkg(gateway : Gateway, all_nodes: List[str], threshold: int, n: in
     is_completed = False
     dkg_key = None
     while not is_completed:
-        party_ids = gateway.error_handler.get_new_party(party_ids)
+        party_ids = gateway.response_validator.get_new_party(party_ids)
         if len(party_ids) < threshold:
             dkg_id = dkg_key['dkg_id']
             logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of available nodes')

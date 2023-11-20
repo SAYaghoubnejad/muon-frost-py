@@ -4,7 +4,8 @@ from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
 from gateway_config import GATEWAY_TOKEN
-from error_handler import ErrorHandler
+from response_validator import ResponseValidator
+from request_object import RequestObject
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
@@ -20,7 +21,7 @@ class Gateway(Libp2pBase):
     protocol over a libp2p network.
     """
 
-    def __init__(self, address: Dict[str, str], secret: str, dns: DNS, max_workers:int = 0, default_timeout:int = 200) -> None:
+    def __init__(self, address: Dict[str, str], secret: str, dns: DNS, max_workers: int = 0, default_timeout: int = 200) -> None:
         """
         Initialize a new Gateway instance.
         
@@ -31,7 +32,7 @@ class Gateway(Libp2pBase):
         super().__init__(address, secret)
         self.dns_resolver: DNS = dns
         self.__nonces: Dict[str, list[Dict]] = {}
-        self.error_handler = ErrorHandler()
+        self.response_validator = ResponseValidator()
         if max_workers != 0:
             self.semaphore = trio.Semaphore(max_workers)
         else:
@@ -66,27 +67,25 @@ class Gateway(Libp2pBase):
         dkg_id = Utils.generate_random_uuid()
         # Execute Round 1 of the protocol
         call_method = "round1"
-        data = {
-            "request_id": f"{dkg_id}_{call_method}",
-            "method": call_method,
-            'gateway_authorization': GATEWAY_TOKEN,
-            "parameters": {
-                "party": party,
-                "dkg_id": dkg_id,
-                'app_name': app_name,
-                'threshold': threshold,
-                'n': n
-            },
+
+        parameters = {
+            "party": party,
+            "dkg_id": dkg_id,
+            'app_name': app_name,
+            'threshold': threshold,
+            'n': n
         }
+        request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
         round1_response = {}
         async with trio.open_nursery() as nursery:
             for peer_id in party:
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
-                                   PROTOCOLS_ID[call_method], data, round1_response, self.default_timeout, self.semaphore)
+                                   PROTOCOLS_ID[call_method], request_object.get(), round1_response, self.default_timeout, self.semaphore)
 
-        is_complete = self.error_handler.check_responses(round1_response)
-
+        logging.info(f'Round1 dictionary response: {round1_response}')
+        is_complete = self.response_validator.validate_responses(round1_response)
+        
         if not is_complete:
             return {
                 'result': 'FAIL'
@@ -103,23 +102,21 @@ class Gateway(Libp2pBase):
 
         # Execute Round 2 of the protocol
         call_method = "round2"
-        data = {
-            "request_id": f"{dkg_id}_{call_method}",
-            "method": call_method,
-            'gateway_authorization': GATEWAY_TOKEN,
-            "parameters": {
-                "dkg_id": dkg_id,
-                'broadcasted_data': round1_response
-            },
+        parameters = {
+            "dkg_id": dkg_id,
+            'broadcasted_data': round1_response
         }
+        request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
+
         round2_response = {}
         async with trio.open_nursery() as nursery:
             for peer_id in party:
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
-                                   PROTOCOLS_ID[call_method], data, round2_response, self.default_timeout, self.semaphore)
+                                   PROTOCOLS_ID[call_method], request_object.get(), round2_response, self.default_timeout, self.semaphore)
 
-        is_complete = self.error_handler.check_responses(round2_response)
+        logging.info(f'Round2 dictionary response: {round2_response}')
+        is_complete = self.response_validator.validate_responses(round2_response)
 
         if not is_complete:
             return {
@@ -133,20 +130,18 @@ class Gateway(Libp2pBase):
         
         async with trio.open_nursery() as nursery:
             for peer_id in party:
-                data = {
-                    "request_id": f"{dkg_id}_{call_method}",
-                    "method": call_method,
-                    'gateway_authorization': GATEWAY_TOKEN,
-                    "parameters": {
-                        "dkg_id": dkg_id,
-                        'send_data': self._gather_round2_data(peer_id, round2_response)
-                    },
+                parameters = {
+                    "dkg_id": dkg_id,
+                    'send_data': self._gather_round2_data(peer_id, round2_response)
                 }
+                request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
+
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
-                                   PROTOCOLS_ID[call_method], data, round3_response, self.default_timeout, self.semaphore)
-                
-        is_complete = self.error_handler.check_responses(round3_response)
+                                   PROTOCOLS_ID[call_method], request_object.get(), round3_response, self.default_timeout, self.semaphore)
+
+        logging.info(f'Round3 dictionary response: {round3_response}')   
+        is_complete = self.response_validator.validate_responses(round3_response)
 
         if not is_complete:
             return {
@@ -189,20 +184,19 @@ class Gateway(Libp2pBase):
                     continue
 
                 req_id = Utils.generate_random_uuid()
-                data = {
-                "method": call_method,
-                "request_id": f"{req_id}_{call_method}",
-                'gateway_authorization': GATEWAY_TOKEN,
-                "parameters": {
+
+                parameters = {
                     'number_of_nonces': min_number_of_nonces * 10,
-                    },
                 }
+                request_object = RequestObject(req_id, call_method, GATEWAY_TOKEN, parameters)
+
                 nonces = {}
                 destination_address = self.dns_resolver.lookup(peer_id)
                 await self.send(destination_address, peer_id,
-                                 PROTOCOLS_ID[call_method], data, nonces, self.default_timeout, self.semaphore)
+                                 PROTOCOLS_ID[call_method], request_object.get(), nonces, self.default_timeout, self.semaphore)
 
-                is_completed = self.error_handler.check_responses(nonces)
+                logging.info(f'Nonces dictionary response: {nonces}')
+                is_completed = self.response_validator.validate_responses(nonces)
 
                 if is_completed:
                     self.__nonces[peer_id] += nonces[peer_id]['nonces']
@@ -243,28 +237,26 @@ class Gateway(Libp2pBase):
         call_method = "sign"
         dkg_id = dkg_key['dkg_id']
         party = dkg_key['party']
-        sign_party = self.error_handler.get_new_party(party, sign_party_num)
-        commitments_dict = await self.get_commitments(sign_party)
+        sign_party = self.response_validator.get_new_party(party, sign_party_num)
+        commitments_dict = await self.get_commitments(sign_party, self.default_timeout)
         # TODO: handle commitment_dict if it's empty.
 
-        # TODO: add a function or wrapper to handle data
-        data = {
-        "method": call_method,
-        "request_id": f"{dkg_id}_{call_method}",
-        'gateway_authorization': GATEWAY_TOKEN,
-        "parameters": {
+
+        parameters = {
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
-        },
         }
+        request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
+
         signatures = {}
         async with trio.open_nursery() as nursery:
             for peer_id in sign_party:
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
-                                   PROTOCOLS_ID[call_method], data, signatures, self.default_timeout, self.semaphore)
+                                   PROTOCOLS_ID[call_method], request_object.get(), signatures, self.default_timeout, self.semaphore)
         
-        is_complete = self.error_handler.check_responses(signatures)
+        logging.info(f'Signatures dictionary response: {signatures}')
+        is_complete = self.response_validator.validate_responses(signatures)
 
         if not is_complete:
             return {

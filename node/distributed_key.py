@@ -258,7 +258,6 @@ class DistributedKey:
                     )
                
                     if point1 != point2:
-                        # TODO: handle complient
                         complaints.append(
                             self.complain(
                                 secret_key, 
@@ -266,7 +265,7 @@ class DistributedKey:
                                 partners_public_keys[sender_id]
                                 )
                             )
-        # TODO: return status
+                        
         if len(complaints) > 0:
             return {'status' : 'COMPLAINT' , 'data' : complaints}
                 

@@ -1,7 +1,7 @@
 from typing import Dict, List
 from gateway_config import PENALTY_LIST, REMOVE_THRESHOLD
 from common.TSS.tss import TSS
-
+from common.data_manager import DataManager
 
 from web3 import Web3
 
@@ -26,10 +26,11 @@ class Penalty:
         current_time = int(time.time())
         return self.__weight * np.exp(self.__time - current_time)
 
-class ErrorHandler:
+class ResponseValidator:
     def __init__(self) -> None:
         self.penalties: Dict[str, Penalty] = {}
-
+        self.data_manager = DataManager()
+        self.data_manager.setup_database('Responses')
     # TODO: use dkg_id -> party
     def get_new_party(self, old_party: List[str], n: int=None) -> List[str]:       
         below_threshold = 0
@@ -48,7 +49,7 @@ class ErrorHandler:
             n = len(old_party) - below_threshold
         return score_party[:n]
 
-    def check_responses(self, responses: Dict[str, Dict]) -> bool:
+    def validate_responses(self, responses: Dict[str, Dict]) -> bool:
         is_complete = True
         for peer_id, data in responses.items():
             data_status = data['status']
@@ -57,6 +58,7 @@ class ErrorHandler:
 
             if data_status == 'COMPLAINT':
                 # TODO: use exclude_complaint function to determine which node is guilty
+                
                 guilty_id = '1'
             else:
                 guilty_id = peer_id
