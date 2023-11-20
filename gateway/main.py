@@ -24,7 +24,7 @@ async def run_dkg(gateway : Gateway, all_nodes: List[str], threshold: int, n: in
         party_ids = gateway.error_handler.get_new_party(party_ids)
         if len(party_ids) < threshold:
             dkg_id = dkg_key['dkg_id']
-            logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of availadle nodes')
+            logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of available nodes')
             exit()
         
         dkg_key = await gateway.request_dkg(threshold, n, party_ids, app_name)
@@ -56,7 +56,6 @@ async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, n
 
     async with trio.open_nursery() as nursery:
         # Start gateway and maintain nonce values for each peer
-        # TODO: Replace trio sleeps with gateway.add_task(.... , sequential = None) 
         nursery.start_soon(gateway.run)
 
         nursery.start_soon(gateway.maintain_nonces, all_nodes)

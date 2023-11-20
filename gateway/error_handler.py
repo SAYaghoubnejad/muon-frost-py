@@ -99,9 +99,9 @@ class ErrorHandler:
             return complaint['complaintant']
         
         encryption_key = TSS.generate_hkdf_key(complaint['encryption_key'])
-        encrypted_data = b'' #TODO
+        encrypted_data = b'' # TODO
         data = json.loads(TSS.decrypt(encrypted_data, encryption_key))
-        round1_broadcasted_data = [] #TODO
+        round1_broadcasted_data = [] # TODO
         for round1_data in round1_broadcasted_data: 
             if round1_data["sender_id"] == complaint['complaintant']:
                 public_fx = round1_data["public_fx"]

@@ -209,7 +209,7 @@ class Gateway(Libp2pBase):
 
             await trio.sleep(sleep_time)
 
-    async def get_commitments(self, party: List[str]) -> Dict:
+    async def get_commitments(self, party: List[str], timeout: int = 5) -> Dict:
         """
         Retrieves a dictionary of commitments from the nonces for each party.
 
@@ -217,20 +217,20 @@ class Gateway(Libp2pBase):
         :return: A dictionary of commitments for each party.
         """
         commitments_dict = {}
-        max_retries = 1000
-        for peer_id in party:
-            retries = 0
-            while not self.__nonces.get(peer_id):
-                retries +=1
-                await trio.sleep(0.2)
-                if retries >= max_retries:
-                    logging.warning('Max tries exceeded in get commitments function.')
-                    break
-            if retries >= max_retries:
-                commitment = []
-            else:
-                commitment = self.__nonces[peer_id].pop()
-            commitments_dict[peer_id] = commitment
+        with trio.move_on_after(timeout) as cancel_scope:
+            
+            for peer_id in party:
+                while not self.__nonces.get(peer_id):
+                    await trio.sleep(0.1)
+                        
+                else:
+                    commitment = self.__nonces[peer_id].pop()
+                commitments_dict[peer_id] = commitment
+        
+        if cancel_scope.cancelled_caught:
+            logging.error(f'get_commitments => Timeout error occurred')
+            commitments_dict = {}
+
         return commitments_dict
     
 
@@ -247,6 +247,8 @@ class Gateway(Libp2pBase):
         party = dkg_key['party']
         sign_party = self.error_handler.get_new_party(party, sign_party_num)
         commitments_dict = await self.get_commitments(sign_party)
+        # TODO: handle commitment_dict if it's empty.
+
         # TODO: add a function or wrapper to handle data
         data = {
         "method": call_method,
