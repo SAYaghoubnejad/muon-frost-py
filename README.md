@@ -45,8 +45,8 @@ Finally, run the gateway in the last terminal:
 
 The gateway takes 4 parameters as input:
 1. `number of nodes you ran`: The number of active nodes.
-2. `threshold`: The threshold of the FROST algorithm, which is an integer (\(t \leq n\)).
-3. `n`: The number of nodes cooperating with the gateway to generate a distributed key (\(n \leq m\)).
+2. `threshold`: The threshold of the FROST algorithm, which is an integer ($t \leq n$).
+3. `n`: The number of nodes cooperating with the gateway to generate a distributed key ($n \leq m$).
 4. `number of signatures`: The number of signatures requested by the gateway upon completion of the Distributed Key Generation (DKG).
 
 
