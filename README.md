@@ -58,4 +58,13 @@ The gateway takes 4 parameters as input:
 
 **Note:** Logs for each node and the gateway are stored in the `./logs` directory.
 
+## Benchmarking
+
+This evaluation is done on the Intel i7-13000H with 8 core and 16GB RAM
+
+|           Benchmark           | DKG | Nonces per Node | Signing |
+|:-----------------------------:|:---:|:---------------:|:-------:|
+| 15 of 20 With 30 Active Nodes |  5  |         7       |     5   |
+| 25 of 30 With 40 Active Nodes |  8  |         8       |     9   |
+
 ---
