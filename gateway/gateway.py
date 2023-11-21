@@ -9,7 +9,7 @@ from request_object import RequestObject
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
-from pprint import pprint
+import pprint
 
 import trio
 import logging
@@ -83,7 +83,7 @@ class Gateway(Libp2pBase):
                 nursery.start_soon(self.send, destination_address, peer_id, 
                                    PROTOCOLS_ID[call_method], request_object.get(), round1_response, self.default_timeout, self.semaphore)
 
-        logging.info(f'Round1 dictionary response: {round1_response}')
+        logging.info(f'Round1 dictionary response: \n{pprint.pformat(round1_response)}')
         is_complete = self.response_validator.validate_responses(round1_response)
         
         if not is_complete:
@@ -97,6 +97,7 @@ class Gateway(Libp2pBase):
             data_bytes = json.dumps(data['broadcast']).encode('utf-8')
             validation = bytes.fromhex(data['validation'])
             public_key_bytes = bytes.fromhex(self.dns_resolver.lookup(peer_id)['public_key'])
+            
             public_key = Secp256k1PublicKey.deserialize(public_key_bytes)
             logging.info(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
 
@@ -115,7 +116,7 @@ class Gateway(Libp2pBase):
                 nursery.start_soon(self.send, destination_address, peer_id, 
                                    PROTOCOLS_ID[call_method], request_object.get(), round2_response, self.default_timeout, self.semaphore)
 
-        logging.info(f'Round2 dictionary response: {round2_response}')
+        logging.info(f'Round2 dictionary response: \n{pprint.pformat(round2_response)}')
         is_complete = self.response_validator.validate_responses(round2_response)
 
         if not is_complete:
@@ -140,8 +141,12 @@ class Gateway(Libp2pBase):
                 nursery.start_soon(self.send, destination_address, peer_id, 
                                    PROTOCOLS_ID[call_method], request_object.get(), round3_response, self.default_timeout, self.semaphore)
 
-        logging.info(f'Round3 dictionary response: {round3_response}')   
-        is_complete = self.response_validator.validate_responses(round3_response)
+        logging.info(f'Round3 dictionary response: \n{pprint.pformat(round3_response)}')
+        
+        public_keys = {}
+        for peer_id, data in round1_response.items():
+            public_keys[peer_id] = data['broadcast']['public_key']
+        is_complete = self.response_validator.validate_responses(round3_response, public_keys)
 
         if not is_complete:
             return {
@@ -195,7 +200,7 @@ class Gateway(Libp2pBase):
                 await self.send(destination_address, peer_id,
                                  PROTOCOLS_ID[call_method], request_object.get(), nonces, self.default_timeout, self.semaphore)
 
-                logging.info(f'Nonces dictionary response: {nonces}')
+                logging.info(f'Nonces dictionary response: \n{pprint.pformat(nonces)}')
                 is_completed = self.response_validator.validate_responses(nonces)
 
                 if is_completed:
@@ -221,7 +226,6 @@ class Gateway(Libp2pBase):
         
         if cancel_scope.cancelled_caught:
             logging.error(f'get_commitments => Timeout error occurred')
-            commitments_dict = {}
 
         return commitments_dict
     
@@ -239,9 +243,18 @@ class Gateway(Libp2pBase):
         party = dkg_key['party']
         sign_party = self.response_validator.get_new_party(party, sign_party_num)
         commitments_dict = await self.get_commitments(sign_party, self.default_timeout)
-        # TODO: handle commitment_dict if it's empty.
+        
+        while len(commitments_dict) < len(sign_party):
+            logging.warning('Retrying to get commitments with the new signing party...')
+            sign_party = self.response_validator.get_new_party(party, sign_party_num)
+            if len(sign_party) < sign_party_num:
+                logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of available nodes')
+                return {
+                'result': 'FAIL'
+                }
+            commitments_dict = await self.get_commitments(sign_party, self.default_timeout)
 
-
+                
         parameters = {
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
@@ -255,7 +268,7 @@ class Gateway(Libp2pBase):
                 nursery.start_soon(self.send, destination_address, peer_id, 
                                    PROTOCOLS_ID[call_method], request_object.get(), signatures, self.default_timeout, self.semaphore)
         
-        logging.info(f'Signatures dictionary response: {signatures}')
+        logging.info(f'Signatures dictionary response: \n{pprint.pformat(signatures)}')
         is_complete = self.response_validator.validate_responses(signatures)
 
         if not is_complete:

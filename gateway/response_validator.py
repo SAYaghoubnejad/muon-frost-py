@@ -49,7 +49,7 @@ class ResponseValidator:
             n = len(old_party) - below_threshold
         return score_party[:n]
 
-    def validate_responses(self, responses: Dict[str, Dict]) -> bool:
+    def validate_responses(self, responses: Dict[str, Dict], public_keys: Dict = None) -> bool:
         is_complete = True
         for peer_id, data in responses.items():
             data_status = data['status']
@@ -57,22 +57,18 @@ class ResponseValidator:
                 is_complete = False
 
             if data_status == 'COMPLAINT':
-                # TODO: use exclude_complaint function to determine which node is guilty
-                
-                guilty_id = '1'
+                guilty_id = self.exclude_complaint(data['data'], public_keys)
             else:
-                guilty_id = peer_id
+                guilty_id = '1'  
             
-            try:
-                self.penalties[guilty_id].add_penalty(data_status)
-            except:
+            if not self.penalties.get(guilty_id):
                 self.penalties[guilty_id] = Penalty(peer_id)
-                self.penalties[guilty_id].add_penalty(data_status)
+            self.penalties[guilty_id].add_penalty(data_status)
         
         return is_complete
 
     
-    def exclude_complaint(self, complaint, public_keys):
+    def exclude_complaint(self, complaint: Dict, public_keys: Dict):
         complaint_pop_hash = Web3.solidity_keccak(
             [
                 "uint8", 
