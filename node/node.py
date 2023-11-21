@@ -58,7 +58,7 @@ class Node(Libp2pBase):
         dkg_id = parameters['dkg_id']
         app_name = parameters['app_name']
 
-        logging.info(f'{sender_id}{PROTOCOLS_ID["round1"]} Got message: {message}')
+        logging.debug(f'{sender_id}{PROTOCOLS_ID["round1"]} Got message: {message}')
 
         self.__add_new_key(
             dkg_id, 
@@ -79,7 +79,7 @@ class Node(Libp2pBase):
         response = json.dumps(data).encode("utf-8")
         try:
             await unpacked_stream.stream.write(response)
-            logging.info(f'{sender_id}{PROTOCOLS_ID["round1"]} Sent message: {response.decode()}')
+            logging.debug(f'{sender_id}{PROTOCOLS_ID["round1"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error('node => Exception occurred :', exc_info=True)
         
@@ -100,7 +100,7 @@ class Node(Libp2pBase):
         dkg_id = parameters['dkg_id']
         whole_broadcasted_data = parameters['broadcasted_data']
 
-        logging.info(f'{sender_id}{PROTOCOLS_ID["round2"]} Got message: {message}')
+        logging.debug(f'{sender_id}{PROTOCOLS_ID["round2"]} Got message: {message}')
 
         broadcasted_data = []
         for peer_id, data in whole_broadcasted_data.items():
@@ -111,7 +111,7 @@ class Node(Libp2pBase):
             public_key_bytes = bytes.fromhex(self.dns.lookup(peer_id)['public_key'])
             public_key = Secp256k1PublicKey.deserialize(public_key_bytes)
             broadcasted_data.append(data['broadcast'])
-            logging.info(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
+            logging.debug(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
 
         round2_broadcast_data = self.distributed_keys[dkg_id].round2(broadcasted_data)
 
@@ -122,7 +122,7 @@ class Node(Libp2pBase):
         response = json.dumps(data).encode("utf-8")
         try:
             await unpacked_stream.stream.write(response)
-            logging.info(f'{sender_id}{PROTOCOLS_ID["round2"]} Sent message: {response.decode()}')
+            logging.debug(f'{sender_id}{PROTOCOLS_ID["round2"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error('node => Exception occurred: ', exc_info=True)
         
@@ -143,14 +143,14 @@ class Node(Libp2pBase):
         dkg_id = parameters['dkg_id']
         send_data = parameters['send_data']
 
-        logging.info(f'{sender_id}{PROTOCOLS_ID["round3"]} Got message: {message}')
+        logging.debug(f'{sender_id}{PROTOCOLS_ID["round3"]} Got message: {message}')
         
         round3_data = self.distributed_keys[dkg_id].round3(send_data)
         
         response = json.dumps(round3_data).encode("utf-8")
         try:
             await unpacked_stream.stream.write(response)
-            logging.info(f'{sender_id}{PROTOCOLS_ID["round3"]} Sent message: {response.decode()}')
+            logging.debug(f'{sender_id}{PROTOCOLS_ID["round3"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error('node => Exception occurred :', exc_info=True)
         
@@ -170,7 +170,7 @@ class Node(Libp2pBase):
         parameters = data["parameters"]
         number_of_nonces = parameters['number_of_nonces']
 
-        logging.info(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Got message: {message}')
+        logging.debug(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Got message: {message}')
         nonces = DistributedKey.generate_nonces(self.data_manager, self.peer_id, number_of_nonces)
 
         data = {
@@ -180,7 +180,7 @@ class Node(Libp2pBase):
         response = json.dumps(data).encode("utf-8")
         try:
             await unpacked_stream.stream.write(response)
-            logging.info(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Sent message: {response.decode()}')
+            logging.debug(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error('node=> Exception occurred :', exc_info=True)
         
@@ -205,7 +205,7 @@ class Node(Libp2pBase):
         message = Utils.call_external_method(f'apps.{app_name}', 'sign')
         encoded_message = json.dumps(message)
 
-        logging.info(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
+        logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
 
         # TODO: Add interface
         signature = self.distributed_keys[dkg_id].frost_sign(commitments_list, encoded_message)
@@ -218,7 +218,7 @@ class Node(Libp2pBase):
         response = json.dumps(data).encode("utf-8")
         try:
             await unpacked_stream.stream.write(response)
-            logging.info(f'{sender_id}{PROTOCOLS_ID["sign"]} Sent message: {response.decode()}')
+            logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error('node=> Exception occurred :', exc_info=True)
         

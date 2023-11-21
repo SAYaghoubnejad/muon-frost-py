@@ -128,24 +128,24 @@ class Libp2pBase:
             try:
                 # Establish connection with the destination peer
                 await self.host.connect(info)
-                logging.info(f"{destination_peer_id}{protocol_id} Connected to peer.")
+                logging.debug(f"{destination_peer_id}{protocol_id} Connected to peer.")
 
                 # Open a new stream for communication
                 stream = await self.host.new_stream(info.peer_id, [protocol_id])
-                logging.info(f"{destination_peer_id}{protocol_id} Opened a new stream to peer")
+                logging.debug(f"{destination_peer_id}{protocol_id} Opened a new stream to peer")
 
                 # Send the message
                 encoded_message = json.dumps(message).encode("utf-8")
                 await stream.write(encoded_message)
-                logging.info(f"{destination_peer_id}{protocol_id} Sent message: {encoded_message}")
+                logging.debug(f"{destination_peer_id}{protocol_id} Sent message: {encoded_message}")
 
                 await stream.close()
-                logging.info(f"{destination_peer_id}{protocol_id} Closed the stream")
+                logging.debug(f"{destination_peer_id}{protocol_id} Closed the stream")
 
                 if result is not None:
                     response = await stream.read()
                     result[destination_peer_id] = json.loads(response.decode("utf-8"))
-                    logging.info(f"{destination_peer_id}{protocol_id} Received response: {result[destination_peer_id]}")
+                    logging.debug(f"{destination_peer_id}{protocol_id} Received response: {result[destination_peer_id]}")
 
             except Exception as e:
                 logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Exception occurred: {type(e).__name__}: {e}')

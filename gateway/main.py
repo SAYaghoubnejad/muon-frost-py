@@ -7,6 +7,7 @@ from common.utils import Utils
 from common.decorators import get_valid_random_seed
 from typing import List
 
+import timeit
 import sys
 
 import trio
@@ -15,7 +16,7 @@ import logging
 async def run_dkg(gateway : Gateway, all_nodes: List[str], threshold: int, n: int, app_name: str, seed: int=42) -> None:
     # Choose subnet from node peer IDs.
     party_ids = Utils.get_new_random_subset(all_nodes, seed, n)
-    logging.info(f'Chosen peer IDs: {party_ids}')
+    logging.debug(f'Chosen peer IDs: {party_ids}')
 
     # Begin DKG protocol
     is_completed = False
@@ -25,7 +26,7 @@ async def run_dkg(gateway : Gateway, all_nodes: List[str], threshold: int, n: in
         if len(party_ids) < threshold:
             dkg_id = dkg_key['dkg_id']
             logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of available nodes')
-            exit()
+            dkg_key['result'] = 'FAIL'
         
         dkg_key = await gateway.request_dkg(threshold, n, party_ids, app_name)
         result = dkg_key['result']
@@ -58,22 +59,29 @@ async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, n
         # Start gateway and maintain nonce values for each peer
         nursery.start_soon(gateway.run)
 
-        nursery.start_soon(gateway.maintain_nonces, all_nodes)
+        await gateway.maintain_nonces(all_nodes)
         
-        dkg_key = await run_dkg(gateway, all_nodes, threshold, n, app_name)
 
-        # Request signature using the generated DKG key
+        start_time = timeit.default_timer()
+        dkg_key = await run_dkg(gateway, all_nodes, threshold, n, app_name)
+        end_time = timeit.default_timer()
+        
         dkg_id = dkg_key['dkg_id']
+
+        logging.info(f'Running DKG {dkg_id} takes {end_time - start_time} seconds')
+        
+        
+        # Request signature using the generated DKG key
         for i in range(num_signs):
             logging.info(f'Get signature {i} for app {app_name} with DKG id {dkg_id}')
 
-            now = time.time()
+            now = timeit.default_timer()
             signature = await gateway.request_signature(dkg_key, threshold)
-            then = time.time()
+            then = timeit.default_timer()
 
             # Log the generated signature
             logging.info(f'Requesting signature {i} takes {then - now} seconds')
-            logging.info(f'Signature: {signature}')
+            logging.info(f'Signature data: {signature}')
 
         # Stop the gateway
         gateway.stop()

@@ -53,17 +53,22 @@ class ResponseValidator:
         is_complete = True
         for peer_id, data in responses.items():
             data_status = data['status']
+            guilty_id = None
             if data_status != 'SUCCESSFUL':
                 is_complete = False
 
             if data_status == 'COMPLAINT':
-                guilty_id = self.exclude_complaint(data['data'], public_keys)
-            else:
-                guilty_id = '1'  
+                guilty_id = self.exclude_complaint(data['data'], public_keys) 
+                
             
-            if not self.penalties.get(guilty_id):
-                self.penalties[guilty_id] = Penalty(peer_id)
-            self.penalties[guilty_id].add_penalty(data_status)
+            if data_status == 'TIMEOUT':
+                guilty_id = peer_id
+            
+            if guilty_id is not None:
+                if not self.penalties.get(guilty_id):
+                    self.penalties[guilty_id] = Penalty(peer_id)
+                self.penalties[guilty_id].add_penalty(data_status)
+
         
         return is_complete
 
