@@ -194,6 +194,7 @@ class Gateway(Libp2pBase):
         call_method = "generate_nonces"
         #while True:
             # TODO: get the number of thread as an input and use multiple thread to get nonces
+        average_time = []
         for peer_id in peer_ids:
             self.__nonces.setdefault(peer_id, [])
             if len(self.__nonces[peer_id]) >= min_number_of_nonces:
@@ -220,9 +221,10 @@ class Gateway(Libp2pBase):
             
             end_time = timeit.default_timer()
             logging.info(f'Getting nonces from peer ID {peer_id} takes {end_time-start_time} seconds.')
-
+            average_time.append(end_time-start_time)
             #await trio.sleep(sleep_time)
-
+        average_time = sum(average_time) / len(average_time)
+        logging.info(f'Nonce generation average time: {average_time}')
     async def get_commitments(self, party: List[str], timeout: int = 5) -> Dict:
         """
         Retrieves a dictionary of commitments from the nonces for each party.
@@ -299,7 +301,7 @@ class Gateway(Libp2pBase):
             response = {
                 'result': 'FAIL'
             }
-            logging.info(f'Signature request response: {response}')
+            logging.info(f'Signature response: {response}')
             return response
 
         # Extract individual signatures and aggregate them

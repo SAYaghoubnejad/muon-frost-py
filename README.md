@@ -34,10 +34,16 @@ First, run the nodes. Type the following command in `m` terminals to initiate th
 ```bash
 (venv) $ python node/main.py [0-m]
 ```
-**Note:** To run multiple nodes using a single command, you can use:
+**Note:** To run multiple nodes and stop them using a single command, you can run the `run_nodes.sh` and `stop_nodes.sh` scripts. First, add execute permission to them by running the following commands: 
 
 ```bash
-(venv) $ for i in {0..m}; do python node/main.py $i & done
+(venv) $ chmod +x run_nodes.sh
+(venv) $ chmod +x stop_nodes.sh
+
+```
+Run multiple nodes using this command:
+```bash
+(venv) $ ./run_nodes.sh [number of nodes]
 
 ```
 
@@ -56,15 +62,21 @@ The gateway takes 4 parameters as input:
 4. `number of signatures`: The number of signatures requested by the gateway upon completion of the Distributed Key Generation (DKG).
 
 
+If you want to stop all the nodes, type  the following command:
+```bash
+(venv) $ ./stop_nodes.sh
+```
+
+
 **Note:** Logs for each node and the gateway are stored in the `./logs` directory.
 
 ## Benchmarking
 
-This evaluation is done on the Intel i7-13000H with 8 core and 16GB RAM
+This evaluation is done on the Intel i7-6700HQ with 8 core and 16GB RAM. (All times are in secconds)
 
-|           Benchmark           | DKG | Nonces per Node | Signing |
-|:-----------------------------:|:---:|:---------------:|:-------:|
-| 15 of 20 With 30 Active Nodes |  5  |         7       |     5   |
-| 25 of 30 With 40 Active Nodes |  8  |         8       |     9   |
+|           Benchmark           | DKG time        | Nonce generation avg time per node | Signing time |   
+|:-----------------------------:|:---------------:|:----------------------------------:|:------------:|
+| 15 of 20 With 30 Active Nodes |  7.992          |       0.755                        |     0.602    |                            
+| 25 of 30 With 40 Active Nodes |  26.253         |       0.757                        |     1.317    |                  
 
 ---
