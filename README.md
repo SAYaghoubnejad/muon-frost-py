@@ -34,6 +34,12 @@ First, run the nodes. Type the following command in `m` terminals to initiate th
 ```bash
 (venv) $ python node/main.py [0-m]
 ```
+**Note:** To run multiple nodes using a single command, you can use:
+
+```bash
+(venv) $ for i in {0..m}; do python node/main.py $i & done
+
+```
 
 After executing the command, wait until the node setup is complete. The setup is finished when the node API is printed along with a message indicating **Waiting for incoming connections...**
 
