@@ -20,7 +20,6 @@ class DistributedKey:
         self.coefficient0 = coefficient0
         self.malicious: Dict[List] = []
         self.__data_manager: DataManager = data_manager
-        self.__data_manager.setup_database(dkg_id)
         self.status = "STARTED"
     
     
@@ -135,7 +134,7 @@ class DistributedKey:
             "public_key": TSS.pub_to_code(public_key),
             "secret_signature": secret_signature
         }
-        
+
         self.__data_manager.save_data(self.dkg_id, 'secret_key', secret_key)
         self.__data_manager.save_data(self.dkg_id, "fx", fx)
         self.__data_manager.save_data(self.dkg_id, "public_fx", public_fx)             
@@ -186,7 +185,7 @@ class DistributedKey:
 
             # TODO: add these checking in gateway in addition to nodes
             if not secret_verification or not coef0_verification:
-                # TODO: how to handle complient
+                # TODO: how to handle complaint
                 self.malicious.append({"id": sender_id, "complaint": data})                
             partners_public_keys[sender_id] = sender_public_key
 
@@ -326,7 +325,7 @@ class DistributedKey:
         return signature
     
     @staticmethod
-    def generate_nonces(data_manager, peer_id: PeerID, number_of_nonces=10):
+    def generate_nonces(data_manager: DataManager, peer_id: PeerID, number_of_nonces=10):
         nonce_publics = []
         for _ in range(number_of_nonces):
             nonce_d = TSS.generate_random_private()

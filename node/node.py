@@ -13,7 +13,7 @@ from typing import Dict, List
 import json
 import logging
 
-# TODO: remove dkg upon complaint
+
 class Node(Libp2pBase):
     def __init__(self, data_manager: DataManager, address: Dict[str, str], secret: str, dns: DNS) -> None:
         super().__init__(address, secret)
@@ -30,18 +30,29 @@ class Node(Libp2pBase):
         }
         self.set_protocol_and_handler(PROTOCOLS_ID, handlers)
         self.data_manager: DataManager = data_manager
-        self.data_manager.setup_database('common_data')
-        self.data_manager.setup_database('apps')
+        self.data_manager.setup_table('common_data')
+        
 
     def __add_new_key(self, dkg_id: str, threshold, n, party: List[str], app_name: str) -> None:
         assert len(party) == n, f'There number of node in party must be equal to n for app {dkg_id}'
         assert self.peer_id in party, f'This node is not amoung specified party for app {dkg_id}'
         assert threshold <= n, f'Threshold must be <= n for app {dkg_id}'
         # TODO: check if this node is included in party
+        
         partners = party
         partners.remove(self.peer_id)
-        self.data_manager.save_data('apps', dkg_id, app_name)
+        self.data_manager.setup_table(dkg_id)
+        self.data_manager.save_data(dkg_id, 'app_name', app_name)
+
         self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, threshold, n, self.peer_id, partners) 
+    
+    def __remove_key(self, dkg_id: str) -> None:
+        if self.distributed_keys.get(dkg_id) is not None:
+            del self.distributed_keys[dkg_id]
+        
+
+
+        
     
     @auth_decorator
     async def round1_handler(self, unpacked_stream: UnpackedStream) -> None:
@@ -147,6 +158,9 @@ class Node(Libp2pBase):
         
         round3_data = self.distributed_keys[dkg_id].round3(send_data)
         
+        if round3_data['status'] == 'COMPLAINT':
+            self.__remove_key(dkg_id)
+        
         response = json.dumps(round3_data).encode("utf-8")
         try:
             await unpacked_stream.stream.write(response)
@@ -201,7 +215,11 @@ class Node(Libp2pBase):
         dkg_id = parameters['dkg_id']
         commitments_list = parameters['commitments_list']
 
-        app_name = self.data_manager.get_data('apps', dkg_id)
+        app_name = self.data_manager.get_data(dkg_id, 'app_name')
+        
+        if app_name is None:
+            return
+        
         message = Utils.call_external_method(f'apps.{app_name}', 'sign')
         encoded_message = json.dumps(message)
 

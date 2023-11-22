@@ -10,7 +10,7 @@ import json
 import numpy as np
 
 
-# TODO: Use data manager to store information
+
 # TODO: Penalty should be Interface
 class Penalty:
     def __init__(self, id: str) -> None:
@@ -30,9 +30,9 @@ class ResponseValidator:
     def __init__(self) -> None:
         self.penalties: Dict[str, Penalty] = {}
         self.data_manager = DataManager()
-        self.data_manager.setup_database('Responses')
+
     # TODO: use dkg_id -> party
-    def get_new_party(self, old_party: List[str], n: int=None) -> List[str]:       
+    def get_new_party(self, table_name: str,key: str, old_party: List[str], n: int=None) -> List[str]:       
         below_threshold = 0
         for peer_id in old_party:
             if peer_id not in self.penalties.keys():
@@ -47,10 +47,15 @@ class ResponseValidator:
         
         if n is None or n >= len(old_party) - below_threshold:
             n = len(old_party) - below_threshold
+        
+        res = score_party[:n]
+        self.data_manager.add_data(table_name, key,res)
         return score_party[:n]
 
-    def validate_responses(self, responses: Dict[str, Dict], public_keys: Dict = None) -> bool:
+    def validate_responses(self, table_name: str, key: str, responses: Dict[str, Dict], 
+                           round1_response: Dict = None, round2_response: Dict = None) -> bool:
         is_complete = True
+        guilty_peer_ids = {}
         for peer_id, data in responses.items():
             data_status = data['status']
             guilty_id = None
@@ -58,22 +63,30 @@ class ResponseValidator:
                 is_complete = False
 
             if data_status == 'COMPLAINT':
-                guilty_id = self.exclude_complaint(data['data'], public_keys) 
+                guilty_id = self.exclude_complaint(data['data'], round1_response, round2_response) 
                 
             
             if data_status == 'TIMEOUT':
                 guilty_id = peer_id
             
             if guilty_id is not None:
+                
                 if not self.penalties.get(guilty_id):
                     self.penalties[guilty_id] = Penalty(peer_id)
                 self.penalties[guilty_id].add_penalty(data_status)
+                guilty_peer_ids[guilty_id] = (data_status, self.penalties[guilty_id].get_score())
 
-        
+        res = {
+            'guilty_peer_ids' : guilty_peer_ids,
+            'responses' : responses,
+            'round1_response' : round1_response,
+            'round2_response' : round2_response
+        }
+        self.data_manager.add_data(table_name, key, res)        
         return is_complete
 
     
-    def exclude_complaint(self, complaint: Dict, public_keys: Dict):
+    def exclude_complaint(self, complaint: Dict, public_keys: Dict, round1_response: Dict, round2_response: Dict):
         complaint_pop_hash = Web3.solidity_keccak(
             [
                 "uint8", 
@@ -104,8 +117,9 @@ class ResponseValidator:
         encryption_key = TSS.generate_hkdf_key(complaint['encryption_key'])
         encrypted_data = b'' # TODO
         data = json.loads(TSS.decrypt(encrypted_data, encryption_key))
-        round1_broadcasted_data = [] # TODO
-        for round1_data in round1_broadcasted_data: 
+
+        for data in round1_response.values():
+            round1_data = data['broadcast']
             if round1_data["sender_id"] == complaint['complaintant']:
                 public_fx = round1_data["public_fx"]
 

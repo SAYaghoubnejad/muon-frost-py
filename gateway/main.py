@@ -14,21 +14,16 @@ import trio
 import logging
 
 async def run_dkg(gateway : Gateway, all_nodes: List[str], threshold: int, n: int, app_name: str, seed: int=42) -> None:
-    # Choose subnet from node peer IDs.
-    party_ids = Utils.get_new_random_subset(all_nodes, seed, n)
-    logging.debug(f'Chosen peer IDs: {party_ids}')
+    
 
     # Begin DKG protocol
     is_completed = False
     dkg_key = None
     while not is_completed:
-        party_ids = gateway.response_validator.get_new_party(party_ids)
-        if len(party_ids) < threshold:
-            dkg_id = dkg_key['dkg_id']
-            logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of available nodes')
-            dkg_key['result'] = 'FAIL'
+        dkg_key = await gateway.request_dkg(threshold, n, all_nodes, app_name, seed)
+        if dkg_key['dkg_id'] == None:
+            exit()
         
-        dkg_key = await gateway.request_dkg(threshold, n, party_ids, app_name)
         result = dkg_key['result']
         logging.info(f'The DKG result is {result}')
         if result == 'SUCCESSFUL':
