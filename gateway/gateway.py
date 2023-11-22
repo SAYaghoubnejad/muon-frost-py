@@ -1,5 +1,5 @@
 from common.libp2p_base import Libp2pBase
-from common.dns import DNS
+from abstract.dns import DNS
 from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
@@ -198,7 +198,7 @@ class Gateway(Libp2pBase):
         logging.info(f'DKG response: {response}')
         return response
     
-    async def maintain_nonces(self, peer_ids: List[str], min_number_of_nonces: int=10, sleep_time: int=2) -> None:
+    async def maintain_nonces(self, min_number_of_nonces: int=10, sleep_time: int=2) -> None:
         """
         Continuously maintains a list of nonces for each peer.
 
@@ -211,6 +211,7 @@ class Gateway(Libp2pBase):
         #while True:
             # TODO: get the number of thread as an input and use multiple thread to get nonces
         average_time = []
+        peer_ids = self.dns_resolver.get_all_nodes()
         for peer_id in peer_ids:
             self.__nonces.setdefault(peer_id, [])
             if len(self.__nonces[peer_id]) >= min_number_of_nonces:

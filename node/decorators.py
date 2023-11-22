@@ -21,12 +21,5 @@ def auth_decorator(handler):
         
     return wrapper
 
-# Interface
-def validate_gateway(data, sender_id):
-    # Implement your validation logic here
-    # For example, check if the client's token is valid
-    request_id = data["request_id"]
-    token = data["gateway_authorization"]
-    method = data["method"]
-    return sender_id == '16Uiu2HAmGVUb3nZ3yaKNpt5kH7KZccKrPaHmG1qTB48QvLdr7igH'
+
 

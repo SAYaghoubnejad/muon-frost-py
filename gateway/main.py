@@ -2,7 +2,7 @@ import time
 from gateway import Gateway
 from gateway_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
-from common.dns import DNS
+from abstract.dns import DNS
 from common.utils import Utils
 from common.decorators import get_valid_random_seed
 from typing import List
@@ -54,7 +54,7 @@ async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, n
         # Start gateway and maintain nonce values for each peer
         nursery.start_soon(gateway.run)
 
-        await gateway.maintain_nonces(all_nodes)
+        await gateway.maintain_nonces()
         
 
         start_time = timeit.default_timer()

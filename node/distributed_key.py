@@ -1,7 +1,7 @@
 import logging
 from common.TSS.tss import TSS, ECPublicKey, ECPrivateKey
 from common.TSS.polynomial import Polynomial
-from common.data_manager import DataManager
+from abstract.data_manager import DataManager
 from libp2p.peer.id import ID as PeerID
 from web3 import Web3
 from typing import List, Dict

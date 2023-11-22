@@ -14,22 +14,7 @@ def seed_validation_decorator(handler):
             raise Exception("Unauthorized random seed.") 
     return wrapper
 
-#Interface
-def validate_seed(seed: int) -> bool:
-    #validate your seed here for random subnet selection:
-    last_block_hash = Utils.get_last_block_hash()
-    if not last_block_hash:
-        return False
-    
-    hash = Web3.solidity_keccak (
-                ['string'],
-                [last_block_hash]
-                # Add more parameters to validate seed...
-            )
 
-    int_hash = int.from_bytes(hash, 'big')
-    
-    return seed == int_hash
 
 
 def get_valid_random_seed(retry: int = 3) -> int:

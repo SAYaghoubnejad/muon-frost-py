@@ -1,7 +1,7 @@
 from typing import Dict, List
 from gateway_config import PENALTY_LIST, REMOVE_THRESHOLD
 from common.TSS.tss import TSS
-from common.data_manager import DataManager
+from abstract.data_manager import DataManager
 
 from web3 import Web3
 
@@ -11,20 +11,6 @@ import numpy as np
 
 
 
-# TODO: Penalty should be Interface
-class Penalty:
-    def __init__(self, id: str) -> None:
-        self.id = id
-        self.__time = 0
-        self.__weight = 0
-
-    def add_penalty(self, error_type: str) -> None:
-        self.__time = int(time.time())
-        self.__weight += PENALTY_LIST[error_type]
-
-    def get_score(self) -> int:
-        current_time = int(time.time())
-        return self.__weight * np.exp(self.__time - current_time)
 
 class ResponseValidator:
     def __init__(self) -> None:

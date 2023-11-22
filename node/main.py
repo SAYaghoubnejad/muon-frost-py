@@ -1,5 +1,5 @@
-from common.dns import DNS
-from common.data_manager import DataManager
+from abstract.dns import DNS
+from abstract.data_manager import DataManager
 from common.configuration_settings import ConfigurationSettings
 from node import Node
 from node_config import SECRETS
