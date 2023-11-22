@@ -78,8 +78,9 @@ If you want to stop all the nodes, type the following command:
 This evaluation is done on the Intel i7-6700HQ with 8 cores and 16GB RAM. (All times are in seconds)
 
 | Benchmark                     | DKG Time | Nonce Generation Avg. Time per Node | Signing Time |
-|-------------------------------|----------|--------------------------------------|--------------|
-| 15 of 20 With 30 Active Nodes  | 7.992 sec| 0.755 sec                             | 0.602 sec    |
-| 25 of 30 With 40 Active Nodes  |26.253 sec| 0.757 sec                             | 1.317 sec    |
+|-------------------------------|----------|-------------------------------------|--------------|
+|  7 of 10 with 15 active nodes | 1.331 sec| 0.724 sec                           | 0.238 sec    | 
+| 15 of 20 With 30 active nodes | 7.992 sec| 0.755 sec                           | 0.602 sec    |
+| 25 of 30 With 40 active nodes |26.253 sec| 0.757 sec                           | 1.317 sec    |
 
 ---
