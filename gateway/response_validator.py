@@ -1,7 +1,7 @@
 from typing import Dict, List
 from gateway_config import PENALTY_LIST, REMOVE_THRESHOLD
 from common.TSS.tss import TSS
-
+from common.data_manager import DataManager
 
 from web3 import Web3
 
@@ -26,10 +26,11 @@ class Penalty:
         current_time = int(time.time())
         return self.__weight * np.exp(self.__time - current_time)
 
-class ErrorHandler:
+class ResponseValidator:
     def __init__(self) -> None:
         self.penalties: Dict[str, Penalty] = {}
-
+        self.data_manager = DataManager()
+        self.data_manager.setup_database('Responses')
     # TODO: use dkg_id -> party
     def get_new_party(self, old_party: List[str], n: int=None) -> List[str]:       
         below_threshold = 0
@@ -48,25 +49,31 @@ class ErrorHandler:
             n = len(old_party) - below_threshold
         return score_party[:n]
 
-    def check_responses(self, responses: Dict[str, Dict]) -> bool:
+    def validate_responses(self, responses: Dict[str, Dict], public_keys: Dict = None) -> bool:
         is_complete = True
         for peer_id, data in responses.items():
             data_status = data['status']
+            guilty_id = None
             if data_status != 'SUCCESSFUL':
                 is_complete = False
 
             if data_status == 'COMPLAINT':
-                # TODO: use exclude_complaint function to determine which node is guilty
-                guilty_id = '1'
-            else:
+                guilty_id = self.exclude_complaint(data['data'], public_keys) 
+                
+            
+            if data_status == 'TIMEOUT':
                 guilty_id = peer_id
             
-            self.penalties[guilty_id].add_penalty(data_status)
+            if guilty_id is not None:
+                if not self.penalties.get(guilty_id):
+                    self.penalties[guilty_id] = Penalty(peer_id)
+                self.penalties[guilty_id].add_penalty(data_status)
+
         
         return is_complete
 
     
-    def exclude_complaint(self, complaint, public_keys):
+    def exclude_complaint(self, complaint: Dict, public_keys: Dict):
         complaint_pop_hash = Web3.solidity_keccak(
             [
                 "uint8", 
@@ -95,9 +102,9 @@ class ErrorHandler:
             return complaint['complaintant']
         
         encryption_key = TSS.generate_hkdf_key(complaint['encryption_key'])
-        encrypted_data = b'' #TODO
+        encrypted_data = b'' # TODO
         data = json.loads(TSS.decrypt(encrypted_data, encryption_key))
-        round1_broadcasted_data = [] #TODO
+        round1_broadcasted_data = [] # TODO
         for round1_data in round1_broadcasted_data: 
             if round1_data["sender_id"] == complaint['complaintant']:
                 public_fx = round1_data["public_fx"]

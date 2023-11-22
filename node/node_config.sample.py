@@ -1,4 +1,4 @@
-PRIVATES = {
+SECRETS = {
     '16Uiu2HAm7Sx71kCEvgK8drUWZACPhU2WiUftZPSKjbAC5accWqwE': 
         '',
     '16Uiu2HAmBep4CggnrJX36oQ1S5z8T9VTrjXS66Tskx2QzQJonkr2': 

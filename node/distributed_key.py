@@ -1,3 +1,4 @@
+import logging
 from common.TSS.tss import TSS, ECPublicKey, ECPrivateKey
 from common.TSS.polynomial import Polynomial
 from common.data_manager import DataManager
@@ -186,7 +187,7 @@ class DistributedKey:
             # TODO: add these checking in gateway in addition to nodes
             if not secret_verification or not coef0_verification:
                 # TODO: how to handle complient
-                self.malicious.append({"id": sender_id, "complient": data})                
+                self.malicious.append({"id": sender_id, "complaint": data})                
             partners_public_keys[sender_id] = sender_public_key
 
         qualified = self.partners
@@ -238,9 +239,8 @@ class DistributedKey:
                 )
             encryption_key = TSS.generate_hkdf_key(encryption_joint_key)
             
-            # TODO: logging
-            assert receiver_id == self.node_id.to_base58(), "ERROR: receiverID does not matched."
-
+            
+            assert receiver_id == self.node_id.to_base58(), "ERROR: receiverID does not match."
             data = json.loads(TSS.decrypt(encrypted_data, encryption_key))
             round2_data.append(data)
             for round1_data in round1_broadcasted_data:
@@ -258,7 +258,6 @@ class DistributedKey:
                     )
                
                     if point1 != point2:
-                        # TODO: handle complient
                         complaints.append(
                             self.complain(
                                 secret_key, 
@@ -266,7 +265,7 @@ class DistributedKey:
                                 partners_public_keys[sender_id]
                                 )
                             )
-        # TODO: return status
+                        
         if len(complaints) > 0:
             return {'status' : 'COMPLAINT' , 'data' : complaints}
                 

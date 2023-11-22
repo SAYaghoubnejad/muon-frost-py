@@ -98,6 +98,16 @@ class Libp2pBase:
         self.__is_running = False
 
     async def send(self, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
+                   message: Dict, result: Dict = None, timeout: float = 5.0, semaphore: trio.Semaphore = None) -> None:
+        if semaphore is not None:
+            async with semaphore:
+                await self.__send(destination_address, destination_peer_id, protocol_id,
+                    message, result, timeout)
+        else:
+            await self.__send(destination_address, destination_peer_id, protocol_id,
+                    message, result, timeout)
+
+    async def __send(self, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
                    message: Dict, result: Dict = None, timeout: float = 5.0) -> None:
         """
         Sends a message to a destination peer using a specified protocol.
@@ -110,35 +120,35 @@ class Libp2pBase:
         result (Dict, optional): A dictionary to store response from the destination. Defaults to None.
         timeout (float, optional): The timeout for the connection attempt in seconds. Defaults to 5.0.
         """
+        
         destination = f"/ip4/{destination_address['ip']}/tcp/{destination_address['port']}/p2p/{destination_peer_id}"
         maddr = multiaddr.Multiaddr(destination)
         info = info_from_p2p_addr(maddr)
-
         with trio.move_on_after(timeout) as cancel_scope:
             try:
                 # Establish connection with the destination peer
                 await self.host.connect(info)
-                logging.info(f"{destination_peer_id}{protocol_id} Connected to peer.")
+                logging.debug(f"{destination_peer_id}{protocol_id} Connected to peer.")
 
                 # Open a new stream for communication
                 stream = await self.host.new_stream(info.peer_id, [protocol_id])
-                logging.info(f"{destination_peer_id}{protocol_id} Opened a new stream to peer")
+                logging.debug(f"{destination_peer_id}{protocol_id} Opened a new stream to peer")
 
                 # Send the message
                 encoded_message = json.dumps(message).encode("utf-8")
                 await stream.write(encoded_message)
-                logging.info(f"{destination_peer_id}{protocol_id} Sent message: {encoded_message}")
+                logging.debug(f"{destination_peer_id}{protocol_id} Sent message: {encoded_message}")
 
                 await stream.close()
-                logging.info(f"{destination_peer_id}{protocol_id} Closed the stream")
+                logging.debug(f"{destination_peer_id}{protocol_id} Closed the stream")
 
                 if result is not None:
                     response = await stream.read()
                     result[destination_peer_id] = json.loads(response.decode("utf-8"))
-                    logging.info(f"{destination_peer_id}{protocol_id} Received response: {result[destination_peer_id]}")
+                    logging.debug(f"{destination_peer_id}{protocol_id} Received response: {result[destination_peer_id]}")
 
             except Exception as e:
-                logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Exception occurred: ', exc_info=True)
+                logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Exception occurred: {type(e).__name__}: {e}')
                 response = {
                     "status": "ERROR",
                     "error": f"An exception occurred: {type(e).__name__}: {e}",
@@ -146,12 +156,12 @@ class Libp2pBase:
                 if result is not None:
                     result[destination_peer_id] = response
 
-            if cancel_scope.cancelled_caught:
-                logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Timeout error occurred')
-                timeout_response = {
-                    "status": "TIMEOUT",
-                    "error": "Communication timed out",
-                }
-                if result is not None:
-                    result[destination_peer_id] = timeout_response
+        if cancel_scope.cancelled_caught:
+            logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Timeout error occurred')
+            timeout_response = {
+                "status": "TIMEOUT",
+                "error": "Communication timed out",
+            }
+            if result is not None:
+                result[destination_peer_id] = timeout_response
 
