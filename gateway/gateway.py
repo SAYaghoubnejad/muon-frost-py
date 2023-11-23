@@ -3,6 +3,7 @@ from abstract.dns import DNS
 from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
+from decorators import seed_validation_decorator
 from gateway_config import GATEWAY_TOKEN
 from response_validator import ResponseValidator
 from request_object import RequestObject
@@ -10,6 +11,7 @@ from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
 
+import types
 import pprint
 import trio
 import logging
@@ -22,7 +24,9 @@ class Gateway(Libp2pBase):
     protocol over a libp2p network.
     """
 
-    def __init__(self, address: Dict[str, str], secret: str, dns: DNS, max_workers: int = 0, default_timeout: int = 200) -> None:
+    def __init__(self, address: Dict[str, str], secret: str, dns: DNS,
+                  data_manager, penalty_class_type, seed_validator: types.FunctionType, 
+                  max_workers: int = 0, default_timeout: int = 200) -> None:
         """
         Initialize a new Gateway instance.
         
@@ -33,8 +37,8 @@ class Gateway(Libp2pBase):
         super().__init__(address, secret)
         self.dns_resolver: DNS = dns
         self.__nonces: Dict[str, list[Dict]] = {}
-        self.response_validator = ResponseValidator()
-        
+        self.response_validator = ResponseValidator(data_manager, penalty_class_type)
+        self.seed_validator = seed_validator
         if max_workers != 0:
             self.semaphore = trio.Semaphore(max_workers)
         else:
@@ -56,6 +60,7 @@ class Gateway(Libp2pBase):
         return round2_data
 
     # TODO: update app_name
+    @seed_validation_decorator()
     async def request_dkg(self, threshold: int, n: int, all_nodes: List[str], app_name: str, seed: int) -> Dict:
         """
         Initiates the DKG protocol with the specified parties.

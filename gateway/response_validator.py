@@ -1,10 +1,7 @@
 from typing import Dict, List
 from gateway_config import PENALTY_LIST, REMOVE_THRESHOLD
 from common.TSS.tss import TSS
-from abstract.data_manager import DataManager
-
 from web3 import Web3
-
 import time
 import json
 import numpy as np
@@ -13,16 +10,17 @@ import numpy as np
 
 
 class ResponseValidator:
-    def __init__(self) -> None:
-        self.penalties: Dict[str, Penalty] = {}
-        self.data_manager = DataManager()
+    def __init__(self, data_manager, penalty_class_type) -> None:
+        self.penalties: Dict = {}
+        self.data_manager = data_manager
+        self.penalty_class_type = penalty_class_type
 
     # TODO: use dkg_id -> party
-    def get_new_party(self, table_name: str,key: str, old_party: List[str], n: int=None) -> List[str]:       
+    def get_new_party(self, table_name: str, key: str, old_party: List[str], n: int=None) -> List[str]:       
         below_threshold = 0
         for peer_id in old_party:
             if peer_id not in self.penalties.keys():
-                self.penalties[peer_id] = Penalty(peer_id)
+                self.penalties[peer_id] = self.penalty_class_type(peer_id)
             if self.penalties[peer_id].get_score() < REMOVE_THRESHOLD:
                 below_threshold += 1
 
@@ -58,7 +56,7 @@ class ResponseValidator:
             if guilty_id is not None:
                 
                 if not self.penalties.get(guilty_id):
-                    self.penalties[guilty_id] = Penalty(peer_id)
+                    self.penalties[guilty_id] = self.penalty_class_type(peer_id)
                 self.penalties[guilty_id].add_penalty(data_status)
                 guilty_peer_ids[guilty_id] = (data_status, self.penalties[guilty_id].get_score())
 

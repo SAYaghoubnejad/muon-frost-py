@@ -2,7 +2,7 @@ from typing import List
 from abc import ABC, abstractmethod
 
 
-class Validations(ABC):
+class Validator(ABC):
 
     @staticmethod
     @abstractmethod
@@ -12,4 +12,8 @@ class Validations(ABC):
     @staticmethod
     @abstractmethod
     def validate_gateway(data, sender_id):
+        pass
+
+    @abstractmethod
+    def validate_message(self, message):
         pass

@@ -12,14 +12,15 @@ from typing import Dict, List
 
 import json
 import logging
-
+import types
 
 class Node(Libp2pBase):
-    def __init__(self, data_manager: DataManager, address: Dict[str, str], secret: str, dns: DNS) -> None:
+    def __init__(self, data_manager: DataManager, address: Dict[str, str],
+                  secret: str, dns: DNS, gateway_validator: types.FunctionType) -> None:
         super().__init__(address, secret)
         self.dns: DNS = dns
         self.distributed_keys: Dict[str, DistributedKey] = {}
-
+        self.gateway_validator = gateway_validator
         # Define handlers for various protocol methods
         handlers = {
             'round1': self.round1_handler,
@@ -54,7 +55,7 @@ class Node(Libp2pBase):
 
         
     
-    @auth_decorator
+    @auth_decorator("")
     async def round1_handler(self, unpacked_stream: UnpackedStream) -> None:
         # Read and decode the message from the network stream
         message = await unpacked_stream.read()

@@ -4,6 +4,7 @@ from unpacked_stream import UnpackedStream
 import logging
 import json
 
+
 def auth_decorator(handler):
     async def wrapper(self, stream: INetStream):
         unpacked_stream = UnpackedStream(stream)
@@ -11,7 +12,7 @@ def auth_decorator(handler):
         try:
             data = json.loads(raw_data)
             # Perform validation and authorization checks
-            if validate_gateway(data, unpacked_stream.sender_id):
+            if self.gateway_validator(data, unpacked_stream.sender_id):
                 return await handler(self, unpacked_stream)
             else:
                 logging.error('node/decorator => Exception occurred. Unauthorized gatewary.')
@@ -20,6 +21,7 @@ def auth_decorator(handler):
             raise Exception("Invalid JSON data")
         
     return wrapper
+
 
 
 
