@@ -12,6 +12,7 @@ EXPOSE 5017
 
 ENV PYTHONPATH="./:$PYTHONPATH"
 
+RUN apk add --no-cache bash nano
 
 RUN apk del build-base && \
     rm -rf /var/cache/apk/* /root/.cache

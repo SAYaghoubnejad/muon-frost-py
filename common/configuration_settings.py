@@ -26,5 +26,5 @@ class ConfigurationSettings:
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(log_formatter)
         root_logger.addHandler(console_handler)
-        root_logger.setLevel(logging.DEBUG)
+        root_logger.setLevel(logging.INFO)
     

@@ -1,5 +1,5 @@
 from common.libp2p_base import Libp2pBase
-from common.dns import DNS
+from common.gateway_docker_dns import DNS
 from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils

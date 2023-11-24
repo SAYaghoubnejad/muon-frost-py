@@ -2,7 +2,7 @@ import time
 from gateway import Gateway
 from gateway_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
-from common.dns import DNS
+from common.gateway_docker_dns import DNS
 from common.utils import Utils
 from common.decorators import get_valid_random_seed
 from typing import List
