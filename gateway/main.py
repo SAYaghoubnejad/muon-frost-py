@@ -28,6 +28,7 @@ async def run_dkg(gateway : Gateway, all_nodes: List[str], threshold: int, n: in
         logging.info(f'The DKG result is {result}')
         if result == 'SUCCESSFUL':
             is_completed = True
+        #break
 
     return dkg_key
 
@@ -47,7 +48,7 @@ async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, n
     # Initialize the Gateway with DNS lookup for the current node
     # TODO: Findout how to handle the tradeoff between number of semaphores and timeout..
     gateway = Gateway(dns.lookup_gateway(gateway_id), PRIVATE, 
-                               dns, max_workers = 0, default_timeout = 1000)
+                               dns, max_workers = 0, default_timeout = 50)
     app_name = 'sample_oracle'
 
     async with trio.open_nursery() as nursery:

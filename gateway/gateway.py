@@ -92,7 +92,7 @@ class Gateway(Libp2pBase):
             "dkg_id": dkg_id,
             'app_name': app_name,
             'threshold': threshold,
-            'n': n
+            'n': len(party)
         }
         request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
         round1_response = {}
