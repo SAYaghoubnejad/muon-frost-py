@@ -97,7 +97,7 @@ class Gateway(Libp2pBase):
             "dkg_id": dkg_id,
             'app_name': app_name,
             'threshold': threshold,
-            'n': n
+            'n': len(party)
         }
         request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
         round1_response = {}
@@ -242,7 +242,7 @@ class Gateway(Libp2pBase):
                 self.__nonces[peer_id] += nonces[peer_id]['nonces']
             
             end_time = timeit.default_timer()
-            logging.info(f'Getting nonces from peer ID {peer_id} takes {end_time-start_time} seconds.')
+            logging.info(f'Getting nonces from peer ID {peer_id} takes {end_time - start_time} seconds.')
             average_time.append(end_time-start_time)
             #await trio.sleep(sleep_time)
         average_time = sum(average_time) / len(average_time)
@@ -315,7 +315,7 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
                                    PROTOCOLS_ID[call_method], request_object.get(), signatures, self.default_timeout, self.semaphore)
-        
+        now = timeit.default_timer()
         logging.debug(f'Signatures dictionary response: \n{pprint.pformat(signatures)}')
         is_complete = self.response_validator.validate_responses(dkg_id, 'sign', signatures)
 
@@ -337,6 +337,8 @@ class Gateway(Libp2pBase):
         if TSS.frost_verify_group_signature(aggregatedSign):
             aggregatedSign['result'] = 'SUCCESSFUL'
             logging.info(f'Signature request response: {aggregatedSign["result"]}')
+            then = timeit.default_timer()
+            logging.debug(f'Aggregating the signatures takes {then - now} seconds.')
         else:
             aggregatedSign['result'] = 'NOT_VERIFIED'
 
