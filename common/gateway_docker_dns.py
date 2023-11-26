@@ -83,7 +83,7 @@ class DNS:
  '16Uiu2HAm3bYN4xcyXdNBAAhTeDXVfrePUEfkzdVSWNtC66hdKmfe': {'ip': '185.220.227.45',
                                                            'port': '80',
                                                            'public_key': '08021221027964b12f9490a7a74ff748fd35af3794a03de769b627d3ddb72f508ee56c71c1'},
- '16Uiu2HAm3pChJeFoz5TqreVbUkL8pzBzooJ8A1oFjnpfX15eYe4G': {'ip': '185.220.227.46',
+ '16Uiu2HAm3pChJeFoz5TqreVbUkL8pzBzooJ8A1oFjnpfX15eYe4G': {'ip': '185.220.227.25',
                                                            'port': '80',
                                                            'public_key': '08021221027ca300eaa34a9fdd06c45bf17761469c7326cc289bdd6e90d38da3371663d699'},
  '16Uiu2HAm46gwTUqQFRGKfJyQeHbkk51AjREGRJVPXvWRmHyZbAaV': {'ip': '185.220.227.47',

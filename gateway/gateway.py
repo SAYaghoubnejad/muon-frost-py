@@ -309,7 +309,7 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
                                    PROTOCOLS_ID[call_method], request_object.get(), signatures, self.default_timeout, self.semaphore)
-        
+        now = timeit.default_timer()
         logging.debug(f'Signatures dictionary response: \n{pprint.pformat(signatures)}')
         is_complete = self.response_validator.validate_responses(dkg_id, 'sign', signatures)
 
@@ -331,6 +331,8 @@ class Gateway(Libp2pBase):
         if TSS.frost_verify_group_signature(aggregatedSign):
             aggregatedSign['result'] = 'SUCCESSFUL'
             logging.info(f'Signature request response: {aggregatedSign["result"]}')
+            then = timeit.default_timer()
+            logging.debug(f'Aggregating the signatures takes {then - now} seconds.')
         else:
             aggregatedSign['result'] = 'NOT_VERIFIED'
 

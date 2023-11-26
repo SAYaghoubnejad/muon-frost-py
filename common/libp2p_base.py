@@ -1,4 +1,5 @@
 # Importing necessary libp2p components
+import timeit
 from libp2p.typing import TProtocol
 import libp2p.crypto.ed25519 as ed25519
 from libp2p.peer.peerinfo import info_from_p2p_addr
@@ -120,14 +121,14 @@ class Libp2pBase:
         result (Dict, optional): A dictionary to store response from the destination. Defaults to None.
         timeout (float, optional): The timeout for the connection attempt in seconds. Defaults to 5.0.
         """
-        
+        now = timeit.default_timer()
         destination = f"/ip4/{destination_address['ip']}/tcp/{destination_address['port']}/p2p/{destination_peer_id}"
         logging.info(f'{destination_peer_id}{protocol_id} destination: {destination}')
         maddr = multiaddr.Multiaddr(destination)
         info = info_from_p2p_addr(maddr)
         with trio.move_on_after(timeout) as cancel_scope:
             try:
-                    # Establish connection with the destination peer
+                # Establish connection with the destination peer
                 await self.host.connect(info)
                 logging.debug(f"{destination_peer_id}{protocol_id} Connected to peer.")
 
@@ -147,7 +148,9 @@ class Libp2pBase:
                     response = await stream.read()
                     logging.debug(f"{destination_peer_id}{protocol_id} Received response: {response}")
                     result[destination_peer_id] = json.loads(response.decode("utf-8"))
-                    logging.debug(f"{destination_peer_id}{protocol_id} Received json response: {result[destination_peer_id]}")
+                    #logging.debug(f"{destination_peer_id}{protocol_id} Received json response: {result[destination_peer_id]}")
+                    then = timeit.default_timer()
+                    logging.debug(f"{destination_peer_id}{protocol_id} take: {then - now}")
 
             except Exception as e:
                 logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Exception occurred: {type(e).__name__}: {e}')
