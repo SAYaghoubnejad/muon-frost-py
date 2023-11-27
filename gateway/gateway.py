@@ -24,7 +24,7 @@ class Gateway(Libp2pBase):
 
     def __init__(self, address: Dict[str, str], secret: str, dns: DNS,
                   data_manager: object, penalty_class_type: Type, seed_validator: types.FunctionType,
-                  response_validator_type: Type, 
+                  response_validator_type: Type, token: str,
                   max_workers: int = 0, default_timeout: int = 200) -> None:
         """
         Initialize a new Gateway instance.
@@ -38,6 +38,7 @@ class Gateway(Libp2pBase):
         self.__nonces: Dict[str, list[Dict]] = {}
         self.response_validator = response_validator_type(data_manager, penalty_class_type)
         self.seed_validator = seed_validator
+        self.token = token
         if max_workers != 0:
             self.semaphore = trio.Semaphore(max_workers)
         else:
@@ -98,7 +99,7 @@ class Gateway(Libp2pBase):
             'threshold': threshold,
             'n': len(party)
         }
-        request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
+        request_object = RequestObject(dkg_id, call_method, self.token, parameters)
         round1_response = {}
         async with trio.open_nursery() as nursery:
             for peer_id in party:
@@ -133,7 +134,7 @@ class Gateway(Libp2pBase):
             "dkg_id": dkg_id,
             'broadcasted_data': round1_response
         }
-        request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
+        request_object = RequestObject(dkg_id, call_method, self.token, parameters)
 
         round2_response = {}
         async with trio.open_nursery() as nursery:
@@ -164,7 +165,7 @@ class Gateway(Libp2pBase):
                     "dkg_id": dkg_id,
                     'send_data': self._gather_round2_data(peer_id, round2_response)
                 }
-                request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
+                request_object = RequestObject(dkg_id, call_method, self.token, parameters)
 
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
@@ -227,7 +228,7 @@ class Gateway(Libp2pBase):
             parameters = {
                 'number_of_nonces': min_number_of_nonces * 10,
             }
-            request_object = RequestObject(req_id, call_method, GATEWAY_TOKEN, parameters)
+            request_object = RequestObject(req_id, call_method, self.token, parameters)
 
             nonces = {}
             destination_address = self.dns_resolver.lookup(peer_id)
@@ -306,7 +307,7 @@ class Gateway(Libp2pBase):
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
         }
-        request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
+        request_object = RequestObject(dkg_id, call_method, self.token, parameters)
 
         signatures = {}
         async with trio.open_nursery() as nursery:

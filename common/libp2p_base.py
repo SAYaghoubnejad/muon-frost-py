@@ -151,7 +151,7 @@ class Libp2pBase:
                     logging.debug(f"{destination_peer_id}{protocol_id} takes: {then - now} seconds.")
 
             except Exception as e:
-                logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Exception occurred: {type(e).__name__}: {e}')
+                logging.error(f'{destination_peer_id}{protocol_id} Libp2pBase => Exception occurred: {type(e).__name__}: {e}')
                 response = {
                     "status": "ERROR",
                     "error": f"An exception occurred: {type(e).__name__}: {e}",
@@ -160,7 +160,7 @@ class Libp2pBase:
                     result[destination_peer_id] = response
 
         if cancel_scope.cancelled_caught:
-            logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Timeout error occurred')
+            logging.error(f'{destination_peer_id}{protocol_id} Libp2pBase => Timeout error occurred')
             timeout_response = {
                 "status": "TIMEOUT",
                 "error": "Communication timed out",

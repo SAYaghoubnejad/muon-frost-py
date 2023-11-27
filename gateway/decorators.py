@@ -7,6 +7,6 @@ def seed_validation_decorator(handler):
         if self.seed_validator(seed):
             return handler(threshold, n, all_nodes, app_name, seed)
         else:
-            logging.error('gateway/decorator => Exception occurred. Unauthorized random seed.')
+            logging.error('Gateway Decorator => Exception occurred. Unauthorized random seed.')
             raise Exception("Unauthorized random seed.") 
     return wrapper

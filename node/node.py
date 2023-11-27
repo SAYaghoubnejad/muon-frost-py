@@ -16,11 +16,13 @@ import types
 
 class Node(Libp2pBase):
     def __init__(self, data_manager: DataManager, address: Dict[str, str],
-                  secret: str, dns: DNS, gateway_validator: types.FunctionType) -> None:
+                  secret: str, dns: DNS, gateway_validator: types.FunctionType,
+                  message_validator: types.FunctionType) -> None:
         super().__init__(address, secret)
         self.dns: DNS = dns
         self.distributed_keys: Dict[str, DistributedKey] = {}
         self.gateway_validator = gateway_validator
+        self.message_validator = message_validator
         # Define handlers for various protocol methods
         handlers = {
             'round1': self.round1_handler,
@@ -55,7 +57,7 @@ class Node(Libp2pBase):
 
         
     
-    @auth_decorator("")
+    @auth_decorator
     async def round1_handler(self, unpacked_stream: UnpackedStream) -> None:
         # Read and decode the message from the network stream
         message = await unpacked_stream.read()
@@ -93,7 +95,7 @@ class Node(Libp2pBase):
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["round1"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('node => Exception occurred :', exc_info=True)
+            logging.error('Node => Exception occurred :', exc_info=True)
         
         await unpacked_stream.stream.close()
 
@@ -136,7 +138,7 @@ class Node(Libp2pBase):
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["round2"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('node => Exception occurred: ', exc_info=True)
+            logging.error('Node => Exception occurred: ', exc_info=True)
         
         await unpacked_stream.stream.close()
 
@@ -167,7 +169,7 @@ class Node(Libp2pBase):
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["round3"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('node => Exception occurred :', exc_info=True)
+            logging.error('Node => Exception occurred :', exc_info=True)
         
         await unpacked_stream.stream.close()
 
@@ -197,7 +199,7 @@ class Node(Libp2pBase):
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('node=> Exception occurred :', exc_info=True)
+            logging.error('Node=> Exception occurred :', exc_info=True)
         
         await unpacked_stream.stream.close()
 
@@ -222,12 +224,14 @@ class Node(Libp2pBase):
             return
         
         message = Utils.call_external_method(f'apps.{app_name}', 'sign')
+
         encoded_message = json.dumps(message)
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
-
-        # TODO: Add interface
-        signature = self.distributed_keys[dkg_id].frost_sign(commitments_list, encoded_message)
+        
+        signature = ''
+        if self.message_validator(message):
+            signature = self.distributed_keys[dkg_id].frost_sign(commitments_list, encoded_message)
 
         data = {
             'data': message,
@@ -239,6 +243,6 @@ class Node(Libp2pBase):
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('node=> Exception occurred :', exc_info=True)
+            logging.error('Node=> Exception occurred :', exc_info=True)
         
         await unpacked_stream.stream.close()

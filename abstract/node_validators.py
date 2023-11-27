@@ -2,7 +2,7 @@ from typing import List
 from abc import ABC, abstractmethod
 
 
-class Validator(ABC):
+class NodeValidators(ABC):
 
     @staticmethod
     @abstractmethod

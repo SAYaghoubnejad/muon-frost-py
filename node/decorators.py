@@ -15,7 +15,7 @@ def auth_decorator(handler):
             if self.gateway_validator(data, unpacked_stream.sender_id):
                 return await handler(self, unpacked_stream)
             else:
-                logging.error('node/decorator => Exception occurred. Unauthorized gatewary.')
+                logging.error('Node Decorator => Exception occurred. Unauthorized gatewary.')
                 raise Exception("Unauthorized gateway")
         except json.JSONDecodeError:
             raise Exception("Invalid JSON data")
