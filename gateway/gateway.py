@@ -4,10 +4,8 @@ from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
 from decorators import seed_validation_decorator
-from gateway_config import GATEWAY_TOKEN
-from response_validator import ResponseValidator
 from request_object import RequestObject
-from typing import List, Dict
+from typing import List, Dict, Type
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
 
@@ -25,7 +23,8 @@ class Gateway(Libp2pBase):
     """
 
     def __init__(self, address: Dict[str, str], secret: str, dns: DNS,
-                  data_manager, penalty_class_type, seed_validator: types.FunctionType, 
+                  data_manager: object, penalty_class_type: Type, seed_validator: types.FunctionType,
+                  response_validator_type: Type, 
                   max_workers: int = 0, default_timeout: int = 200) -> None:
         """
         Initialize a new Gateway instance.
@@ -37,7 +36,7 @@ class Gateway(Libp2pBase):
         super().__init__(address, secret)
         self.dns_resolver: DNS = dns
         self.__nonces: Dict[str, list[Dict]] = {}
-        self.response_validator = ResponseValidator(data_manager, penalty_class_type)
+        self.response_validator = response_validator_type(data_manager, penalty_class_type)
         self.seed_validator = seed_validator
         if max_workers != 0:
             self.semaphore = trio.Semaphore(max_workers)
