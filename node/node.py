@@ -223,15 +223,16 @@ class Node(Libp2pBase):
         if app_name is None:
             return
         
-        message = Utils.call_external_method(f'apps.{app_name}', 'sign')
+        #message = Utils.call_external_method(f'apps.{app_name}', 'sign')
 
-        encoded_message = json.dumps(message)
+        
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
-        
+    
         signature = ''
-        if self.message_validator(message):
-            signature = self.distributed_keys[dkg_id].frost_sign(commitments_list, encoded_message)
+        message = self.message_validator(f'{app_name}', 'sign')
+        encoded_message = json.dumps(message)
+        signature = self.distributed_keys[dkg_id].frost_sign(commitments_list, encoded_message)
 
         data = {
             'data': message,
