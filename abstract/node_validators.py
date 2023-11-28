@@ -15,5 +15,5 @@ class NodeValidators(ABC):
         pass
 
     @abstractmethod
-    def validate_message(self, message):
+    def validate_app(self, message):
         pass

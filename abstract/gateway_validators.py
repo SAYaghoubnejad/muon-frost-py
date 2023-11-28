@@ -3,9 +3,8 @@ from abc import ABC, abstractmethod
 
 
 class GatewayValidators(ABC):
-
     @staticmethod
     @abstractmethod
-    def validate_seed(seed: int) -> bool:
+    def get_valid_seed() -> bool:
         pass
 

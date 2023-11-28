@@ -17,12 +17,12 @@ import types
 class Node(Libp2pBase):
     def __init__(self, data_manager: DataManager, address: Dict[str, str],
                   secret: str, dns: DNS, gateway_validator: types.FunctionType,
-                  message_validator: types.FunctionType) -> None:
+                  app_validator: types.FunctionType) -> None:
         super().__init__(address, secret)
         self.dns: DNS = dns
         self.distributed_keys: Dict[str, DistributedKey] = {}
         self.gateway_validator = gateway_validator
-        self.message_validator = message_validator
+        self.app_validator = app_validator
         # Define handlers for various protocol methods
         handlers = {
             'round1': self.round1_handler,
@@ -223,14 +223,12 @@ class Node(Libp2pBase):
         if app_name is None:
             return
         
-        #message = Utils.call_external_method(f'apps.{app_name}', 'sign')
 
-        
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
     
         signature = ''
-        message = self.message_validator(f'{app_name}', 'sign')
+        message = self.app_validator(f'{app_name}', 'sign')
         encoded_message = json.dumps(message)
         signature = self.distributed_keys[dkg_id].frost_sign(commitments_list, encoded_message)
 

@@ -1,14 +1,14 @@
 from typing import Dict, List, Type
 from abc import ABC, abstractmethod
-
+from node_penalty import NodePenalty
 
 
 class ResponseValidator(ABC):
-    def __init__(self, data_manager, dns, penalty_class_type: Type) -> None:
+    def __init__(self, data_manager, penalty_class_type: NodePenalty) -> None:
         self.penalties: Dict = {}
         self.data_manager = data_manager
         self.penalty_class_type = penalty_class_type
-        self.dns = dns
+
     @abstractmethod
     def get_new_party(self, table_name: str, key: str, seed: int, n: int=None):       
         pass
