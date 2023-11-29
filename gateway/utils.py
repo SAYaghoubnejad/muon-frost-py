@@ -1,5 +1,6 @@
-from typing import Dict
-
+from typing import Dict, List
+import trio
+from common.TSS.tss import TSS
 class RequestObject:
     def __init__(self, request_id: str, call_method: str, gateway_authorization: str, parameters: Dict) -> None:
         self.request_id: str = request_id
@@ -16,3 +17,12 @@ class RequestObject:
             "parameters": self.parameters
         }
         return result
+
+
+class Wrappers:
+    @staticmethod
+    async def wrapper_frost_verify_single_signature(results: List, *args, **kwargs):
+        result = await trio.to_thread.run_sync(
+                 lambda:TSS.frost_verify_single_signature(*args, **kwargs)
+                 )
+        results[args[0]] = result

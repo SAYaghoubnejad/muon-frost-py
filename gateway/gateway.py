@@ -5,7 +5,7 @@ from common.TSS.tss import TSS
 from common.utils import Utils
 from gateway_config import GATEWAY_TOKEN
 from response_validator import ResponseValidator
-from request_object import RequestObject
+from utils import RequestObject, Wrappers
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
@@ -271,6 +271,7 @@ class Gateway(Libp2pBase):
             logging.warning(f'get_commitments => Timeout error occurred. peer ids with timeout: {peer_ids_with_timeout}')
         return commitments_dict
     
+    
 
     async def request_signature(self, dkg_key: Dict, sign_party_num: int) -> Dict:
         """
@@ -320,19 +321,35 @@ class Gateway(Libp2pBase):
             logging.info(f'Signature response: {response}')
             return response
 
-        # Extract individual signatures and aggregate them
-        signs = [i['signature_data'] for i in signatures.values()]
-        
-        # TODO: check if all signed messages are equal (maybe don't need to do)
         message = [i['data'] for i in signatures.values()][0]
         encoded_message = json.dumps(message)
-        aggregatedSign = TSS.frost_aggregate_signatures(signs, dkg_key['public_shares'], encoded_message, commitments_dict, dkg_key['public_key'])
+        signs = [i['signature_data'] for i in signatures.values()]
+        # Extract individual signatures and aggregate them
         
+        
+        aggregated_public_nonce = TSS.frost_aggregate_nonce(encoded_message, commitments_dict, dkg_key['public_key'])
+        verify_results = {}
+        async with trio.open_nursery() as nursery:
+            for sign in signs:
+                nursery.start_soon(lambda: Wrappers.wrapper_frost_verify_single_signature(verify_results,
+                                        sign['id'], encoded_message, commitments_dict,
+                                        aggregated_public_nonce, dkg_key['public_shares'][sign['id']], 
+                                        sign, dkg_key['public_key'])
+                )
+        # TODO: should check verify_results dictionary for malicous nodes. 
+        
+        message = [i['data'] for i in signatures.values()][0]
+        encoded_message = json.dumps(message)
+        #aggregatedSign = TSS.frost_aggregate_signatures(signs, dkg_key['public_shares'], encoded_message, commitments_dict, )
+        aggregatedSign = TSS.frost_aggregate_signatures(encoded_message, signs, 
+                                                        aggregated_public_nonce, 
+                                                        dkg_key['public_key'])
         if TSS.frost_verify_group_signature(aggregatedSign):
             aggregatedSign['result'] = 'SUCCESSFUL'
             logging.info(f'Signature request response: {aggregatedSign["result"]}')
             then = timeit.default_timer()
             logging.debug(f'Aggregating the signatures takes {then - now} seconds.')
+            print(verify_results)
         else:
             aggregatedSign['result'] = 'NOT_VERIFIED'
 
