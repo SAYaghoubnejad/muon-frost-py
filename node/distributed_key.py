@@ -1,5 +1,6 @@
 import logging
-from common.TSS.tss import TSS, ECPublicKey, ECPrivateKey
+from fastecdsa import keys
+from common.TSS.tss import TSS, Point
 from common.TSS.polynomial import Polynomial
 from common.data_manager import DataManager
 from libp2p.peer.id import ID as PeerID
@@ -23,17 +24,11 @@ class DistributedKey:
         self.status = "STARTED"
     
     
-    def complain(self ,secret_key : ECPrivateKey, partner_id : str, partner_public : ECPublicKey):
-        encryption_joint_key = TSS.pub_to_code(ECPublicKey(
-                TSS.curve.mul_point(
-                    secret_key.d, 
-                    partner_public.W)
-                )
-            )
-        public_key = ECPublicKey(TSS.curve.mul_point(secret_key , TSS.curve.generator))
-        random_nonce = TSS.generate_random_private()
-        public_nonce = ECPublicKey(TSS.curve.mul_point(random_nonce , TSS.curve.generator))
-        commitment   = ECPublicKey(TSS.curve.mul_point(random_nonce , partner_public.W))
+    def complain(self ,secret_key : int, partner_id : str, partner_public : Point):
+        encryption_joint_key = TSS.pub_to_code(secret_key * partner_public)
+        public_key = keys.get_public_key(secret_key , TSS.ecurve)
+        random_nonce, public_nonce = keys.gen_keypair()
+        commitment  = random_nonce * partner_public
         complaint_pop_hash = Web3.solidity_keccak(
             [
                 "uint8", 
@@ -69,10 +64,8 @@ class DistributedKey:
         }
 
     def round1(self) -> Dict:
-        secret_key = TSS.generate_random_private()
-        public_key = secret_key.get_public_key()
-        secret_nonce = TSS.generate_random_private()
-        public_nonce = secret_nonce.get_public_key()
+        secret_key, public_key =  keys.gen_keypair(TSS.ecurve)
+        secret_nonce, public_nonce =  keys.gen_keypair(TSS.ecurve)
         secret_pop_hash = Web3.solidity_keccak(
             [
                 "string",
@@ -99,11 +92,10 @@ class DistributedKey:
         }
 
         # Generate DKG polynomial
-        fx = Polynomial(self.threshold, TSS.curve, self.coefficient0)
+        fx = Polynomial(self.threshold, TSS.ecurve, self.coefficient0)
         public_fx = fx.coef_pub_keys()
         
-        coef0_nonce = TSS.generate_random_private()
-        public_coef0_nonce = coef0_nonce.get_public_key()
+        coef0_nonce, public_coef0_nonce = keys.gen_keypair(TSS.ecurve)
         coef0_pop_hash = Web3.solidity_keccak(
             [
                 "string", 
@@ -198,19 +190,14 @@ class DistributedKey:
         send = []
         for id in qualified:
             encryption_joint_key = TSS.pub_to_code(
-                ECPublicKey(
-                    TSS.curve.mul_point(
-                        secret_key.d, 
-                        TSS.code_to_pub(partners_public_keys[id]).W)
-                    )
-                )
+                secret_key * TSS.code_to_pub(partners_public_keys[id]))
             encryption_key = TSS.generate_hkdf_key(encryption_joint_key)
             id_as_int = int.from_bytes(PeerID.from_base58(id).to_bytes(), 'big')
             data = {
                 'receiver_id': id,
                 'sender_id': self.node_id.to_base58(),
                 'data': TSS.encrypt(
-                    {"receiver_id": id, "f": fx.evaluate(id_as_int).d},
+                    {"receiver_id": id, "f": fx.evaluate(id_as_int)},
                     encryption_key
                 )
             }
@@ -230,14 +217,8 @@ class DistributedKey:
             receiver_id = message['receiver_id']
             encrypted_data = message['data']
             encryption_joint_key = TSS.pub_to_code(
-                ECPublicKey(
-                    TSS.curve.mul_point(
-                        secret_key.d, 
-                        TSS.code_to_pub(partners_public_keys[sender_id]).W)
-                    )
-                )
+                secret_key * TSS.code_to_pub(partners_public_keys[sender_id]))
             encryption_key = TSS.generate_hkdf_key(encryption_joint_key)
-            
             
             assert receiver_id == self.node_id.to_base58(), "ERROR: receiverID does not match."
             data = json.loads(TSS.decrypt(encrypted_data, encryption_key))
@@ -251,10 +232,7 @@ class DistributedKey:
                         int.from_bytes(self.node_id.to_bytes(), 'big')
                     )
                     
-                    point2 = TSS.curve.mul_point(
-                        data["f"], 
-                        TSS.curve.generator
-                    )
+                    point2 = data["f"] * TSS.ecurve.G
                
                     if point1 != point2:
                         complaints.append(
@@ -269,7 +247,7 @@ class DistributedKey:
             return {'status' : 'COMPLAINT' , 'data' : complaints}
                 
         fx: Polynomial = self.__data_manager.get_data(self.dkg_id, "fx")
-        my_fragment = fx.evaluate(int.from_bytes(self.node_id.to_bytes(), 'big')).d
+        my_fragment = fx.evaluate(int.from_bytes(self.node_id.to_bytes(), 'big'))
         share_fragments = [my_fragment]
         for data in round2_data:
             share_fragments.append(data["f"])
@@ -279,18 +257,17 @@ class DistributedKey:
             if data["sender_id"] in self.partners:
                 public_fx.append(TSS.code_to_pub(data["public_fx"][0]))
 
-        aggregated_point = public_fx[0].W
+        dkg_public_key = public_fx[0]
         for i in range(1, len(public_fx)):
-            aggregated_point = TSS.curve.add_point(aggregated_point, public_fx[i].W)
+            dkg_public_key = dkg_public_key + public_fx[i]
 
-        dkg_public_key = ECPublicKey(aggregated_point)
-        share = ECPrivateKey(sum(share_fragments), TSS.curve)
+        share = sum(share_fragments)
         self.dkg_key_pair = {"share": share, "dkg_public_key": dkg_public_key}
 
         result = {
             'data': {
                 "dkg_public_key": TSS.pub_to_code(dkg_public_key),
-                "public_share" : TSS.pub_to_code(share.get_public_key()),
+                "public_share" : TSS.pub_to_code(keys.get_public_key(share , TSS.ecurve)),
             },
             "status": "SUCCESSFUL"
         }
@@ -330,8 +307,8 @@ class DistributedKey:
         for _ in range(number_of_nonces):
             nonce_d = TSS.generate_random_private()
             nonce_e = TSS.generate_random_private()
-            public_nonce_d = TSS.pub_to_code(nonce_d.get_public_key())
-            public_nonce_e = TSS.pub_to_code(nonce_e.get_public_key())
+            public_nonce_d = TSS.pub_to_code(keys.get_public_key(nonce_d , TSS.ecurve))
+            public_nonce_e = TSS.pub_to_code(keys.get_public_key(nonce_e , TSS.ecurve))
 
             data_manager.add_data('common_data', 'nonces', {
                 'nonce_d_pair': {public_nonce_d: nonce_d},

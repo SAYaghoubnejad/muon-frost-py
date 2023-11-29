@@ -128,10 +128,7 @@ class ResponseValidator:
                     int.from_bytes(self.node_id.to_bytes(), 'big')
                 )
                 
-                point2 = TSS.curve.mul_point(
-                    data["f"], 
-                    TSS.curve.generator
-                )
+                point2 = data["f"] * TSS.ecurve.G
 
                 if point1 != point2:
                     return complaint['malicious']

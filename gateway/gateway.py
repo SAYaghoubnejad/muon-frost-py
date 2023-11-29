@@ -1,5 +1,5 @@
 from common.libp2p_base import Libp2pBase
-from common.gateway_docker_dns import DNS
+from common.dns import DNS
 from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
@@ -101,7 +101,7 @@ class Gateway(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
                                    PROTOCOLS_ID[call_method], request_object.get(), round1_response, self.default_timeout, self.semaphore)
-
+        print(round1_response)
         logging.debug(f'Round1 dictionary response: \n{pprint.pformat(round1_response)}')
         is_complete = self.response_validator.validate_responses(dkg_id, 'round1', round1_response)
         
