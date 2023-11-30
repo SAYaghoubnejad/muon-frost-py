@@ -1,6 +1,6 @@
 import time
-from gateway import Gateway
-from gateway_config import PRIVATE
+from signature_aggregator import SignatureAggregator
+from sa_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
 from common.dns import DNS
 from common.utils import Utils
@@ -13,7 +13,7 @@ import sys
 import trio
 import logging
 
-async def run_dkg(gateway : Gateway, all_nodes: List[str], threshold: int, n: int, app_name: str, seed: int=42) -> None:
+async def run_dkg(gateway : SignatureAggregator, all_nodes: List[str], threshold: int, n: int, app_name: str, seed: int=42) -> None:
     
 
     # Begin DKG protocol
@@ -47,7 +47,7 @@ async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, n
 
     # Initialize the Gateway with DNS lookup for the current node
     # TODO: Findout how to handle the tradeoff between number of semaphores and timeout..
-    gateway = Gateway(dns.lookup_gateway(gateway_id), PRIVATE, 
+    gateway = SignatureAggregator(dns.lookup_gateway(gateway_id), PRIVATE, 
                                dns, max_workers = 0, default_timeout = 50)
     app_name = 'sample_oracle'
 

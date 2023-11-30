@@ -1,5 +1,5 @@
 from typing import Dict, List
-from gateway_config import PENALTY_LIST, REMOVE_THRESHOLD
+from sa_config import PENALTY_LIST, REMOVE_THRESHOLD
 from common.TSS.tss import TSS
 from common.data_manager import DataManager
 

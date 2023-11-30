@@ -3,7 +3,7 @@ from common.dns import DNS
 from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
-from gateway_config import GATEWAY_TOKEN
+from sa_config import GATEWAY_TOKEN
 from response_validator import ResponseValidator
 from utils import RequestObject, Wrappers
 from typing import List, Dict
@@ -16,7 +16,7 @@ import logging
 import json
 import timeit
 
-class Gateway(Libp2pBase):
+class SignatureAggregator(Libp2pBase):
     """
     Gateway class inherits from Libp2pBase, provides functionality for DKG (Distributed Key Generation)
     protocol over a libp2p network.
