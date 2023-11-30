@@ -148,9 +148,8 @@ class Libp2pBase:
                     response = await stream.read()
                     logging.debug(f"{destination_peer_id}{protocol_id} Received response: {response}")
                     result[destination_peer_id] = json.loads(response.decode("utf-8"))
-                    #logging.debug(f"{destination_peer_id}{protocol_id} Received json response: {result[destination_peer_id]}")
                     then = timeit.default_timer()
-                    logging.debug(f"{destination_peer_id}{protocol_id} take: {then - now}")
+                    logging.debug(f"{destination_peer_id}{protocol_id} takes: {then - now} seconds.")
 
             except Exception as e:
                 logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Exception occurred: {type(e).__name__}: {e}')
