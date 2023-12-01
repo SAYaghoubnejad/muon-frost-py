@@ -81,7 +81,7 @@ This evaluation is done on the Intel i7-6700HQ with 8 cores and 16GB RAM. (All t
 |-------------------------------|----------|-------------------------------------|--------------|
 |  7 of 10                      | 0.840 sec| 0.352 sec                           | 0.135 sec    | 
 | 15 of 20                      | 5.435 sec| 0.344 sec                           | 0.380 sec    |
-| 25 of 30                      |20.314 sec| 0.349 sec                           | 0.948 sec    |
+| 25 of 30                      |14.183 sec| 0.345 sec                           | 0.601 sec    |
 
 ---
 
