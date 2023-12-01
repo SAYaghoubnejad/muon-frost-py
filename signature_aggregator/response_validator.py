@@ -65,8 +65,7 @@ class ResponseValidator:
             if data_status == 'COMPLAINT':
                 guilty_id = self.exclude_complaint(data['data'], round1_response, round2_response) 
                 
-            
-            if data_status == 'TIMEOUT':
+            if data_status in ['TIMEOUT', 'MALICIOUS']:
                 guilty_id = peer_id
             
             if guilty_id is not None:

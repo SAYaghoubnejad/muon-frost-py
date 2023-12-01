@@ -9,6 +9,9 @@ from utils import RequestObject, Wrappers
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
+from fastecdsa.point import Point
+from fastecdsa import curve
+
 
 import pprint
 import trio
@@ -101,7 +104,7 @@ class SignatureAggregator(Libp2pBase):
                 destination_address = self.dns_resolver.lookup(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
                                    PROTOCOLS_ID[call_method], request_object.get(), round1_response, self.default_timeout, self.semaphore)
-        print(round1_response)
+
         logging.debug(f'Round1 dictionary response: \n{pprint.pformat(round1_response)}')
         is_complete = self.response_validator.validate_responses(dkg_id, 'round1', round1_response)
         
@@ -301,6 +304,7 @@ class SignatureAggregator(Libp2pBase):
         parameters = {
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
+            'dkg_public_key' : dkg_key['public_key']
         }
         request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
 
@@ -308,10 +312,30 @@ class SignatureAggregator(Libp2pBase):
         async with trio.open_nursery() as nursery:
             for peer_id in sign_party:
                 destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send, destination_address, peer_id, 
-                                   PROTOCOLS_ID[call_method], request_object.get(), signatures, self.default_timeout, self.semaphore)
+
+                
+                nursery.start_soon(Wrappers.sign, self.send, dkg_key, destination_address, peer_id, 
+                                   PROTOCOLS_ID[call_method], request_object.get(), signatures, 
+                                   self.default_timeout, self.semaphore)
+        
         now = timeit.default_timer()
         logging.debug(f'Signatures dictionary response: \n{pprint.pformat(signatures)}')
+        
+        
+
+        
+
+        message = [i['data'] for i in signatures.values()][0]
+        encoded_message = json.dumps(message)
+        signs = [i['signature_data'] for i in signatures.values()]
+        aggregated_public_nonces = [i['signature_data']['aggregated_public_nonce'] for i in signatures.values()]
+        if not Utils.check_list_equality(aggregated_public_nonces):
+            aggregated_public_nonce = TSS.frost_aggregate_nonce(encoded_message, commitments_dict, dkg_key['public_key'])
+            aggregated_public_nonce = TSS.pub_to_code(aggregated_public_nonce)
+            for peer_id, data in signatures.items():
+                if data['signature_data']['aggregated_public_nonce'] != aggregated_public_nonce:
+                    data['status'] = 'MALICIOUS'
+        
         is_complete = self.response_validator.validate_responses(dkg_id, 'sign', signatures)
 
         if not is_complete:
@@ -320,37 +344,16 @@ class SignatureAggregator(Libp2pBase):
             }
             logging.info(f'Signature response: {response}')
             return response
-
-        message = [i['data'] for i in signatures.values()][0]
-        encoded_message = json.dumps(message)
-        signs = [i['signature_data'] for i in signatures.values()]
-        # Extract individual signatures and aggregate them
-        
-        
-        aggregated_public_nonce = TSS.frost_aggregate_nonce(encoded_message, commitments_dict, dkg_key['public_key'])
-        verify_results = {}
-        async with trio.open_nursery() as nursery:
-            for sign in signs:
-                nursery.start_soon(lambda: Wrappers.wrapper_frost_verify_single_signature(verify_results,
-                                        sign['id'], encoded_message, commitments_dict,
-                                        aggregated_public_nonce, dkg_key['public_shares'][sign['id']], 
-                                        sign, dkg_key['public_key'])
-                )
-        # TODO: should check verify_results dictionary for malicous nodes. 
-        
-        message = [i['data'] for i in signatures.values()][0]
-        encoded_message = json.dumps(message)
-        #aggregatedSign = TSS.frost_aggregate_signatures(signs, dkg_key['public_shares'], encoded_message, commitments_dict, )
-        aggregatedSign = TSS.frost_aggregate_signatures(encoded_message, signs, 
+        aggregated_public_nonce = TSS.code_to_pub(aggregated_public_nonces[0])
+        aggregated_sign = TSS.frost_aggregate_signatures(encoded_message, signs, 
                                                         aggregated_public_nonce, 
                                                         dkg_key['public_key'])
-        if TSS.frost_verify_group_signature(aggregatedSign):
-            aggregatedSign['result'] = 'SUCCESSFUL'
-            logging.info(f'Signature request response: {aggregatedSign["result"]}')
+        if TSS.frost_verify_group_signature(aggregated_sign):
+            aggregated_sign['result'] = 'SUCCESSFUL'
+            logging.info(f'Signature request response: {aggregated_sign["result"]}')
             then = timeit.default_timer()
             logging.debug(f'Aggregating the signatures takes {then - now} seconds.')
-            print(verify_results)
         else:
-            aggregatedSign['result'] = 'NOT_VERIFIED'
+            aggregated_sign['result'] = 'NOT_VERIFIED'
 
-        return aggregatedSign
+        return aggregated_sign
