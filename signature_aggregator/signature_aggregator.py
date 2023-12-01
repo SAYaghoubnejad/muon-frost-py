@@ -3,12 +3,15 @@ from common.dns import DNS
 from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
-from gateway_config import GATEWAY_TOKEN
+from sa_config import GATEWAY_TOKEN
 from response_validator import ResponseValidator
-from request_object import RequestObject
+from utils import RequestObject, Wrappers
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
+from fastecdsa.point import Point
+from fastecdsa import curve
+
 
 import pprint
 import trio
@@ -16,7 +19,7 @@ import logging
 import json
 import timeit
 
-class Gateway(Libp2pBase):
+class SignatureAggregator(Libp2pBase):
     """
     Gateway class inherits from Libp2pBase, provides functionality for DKG (Distributed Key Generation)
     protocol over a libp2p network.
@@ -34,6 +37,7 @@ class Gateway(Libp2pBase):
         self.dns_resolver: DNS = dns
         self.__nonces: Dict[str, list[Dict]] = {}
         self.response_validator = ResponseValidator()
+        
         if max_workers != 0:
             self.semaphore = trio.Semaphore(max_workers)
         else:
@@ -55,7 +59,7 @@ class Gateway(Libp2pBase):
         return round2_data
 
     # TODO: update app_name
-    async def request_dkg(self, threshold: int, n: int, party: List[str], app_name: str) -> Dict:
+    async def request_dkg(self, threshold: int, n: int, all_nodes: List[str], app_name: str, seed: int) -> Dict:
         """
         Initiates the DKG protocol with the specified parties.
 
@@ -65,7 +69,24 @@ class Gateway(Libp2pBase):
         :param app_name: The name of app for which the key is generated.
         :return: A dictionary containing the DKG public key and shares.
         """
+        # Choose subnet from node peer IDs.
+        party = Utils.get_new_random_subset(all_nodes, seed, n)
+        logging.debug(f'Chosen peer IDs: {party}')
+
         dkg_id = Utils.generate_random_uuid()
+        self.response_validator.data_manager.setup_table(dkg_id)
+        party = self.response_validator.get_new_party(dkg_id, 'get_new_party', party)
+
+        if len(party) < threshold:
+            response = {
+                'result': 'FAIL',
+                "dkg_id": None,
+            }
+            logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of available nodes')
+            return response
+        
+        
+        
         # Execute Round 1 of the protocol
         call_method = "round1"
 
@@ -74,7 +95,7 @@ class Gateway(Libp2pBase):
             "dkg_id": dkg_id,
             'app_name': app_name,
             'threshold': threshold,
-            'n': n
+            'n': len(party)
         }
         request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
         round1_response = {}
@@ -85,7 +106,7 @@ class Gateway(Libp2pBase):
                                    PROTOCOLS_ID[call_method], request_object.get(), round1_response, self.default_timeout, self.semaphore)
 
         logging.debug(f'Round1 dictionary response: \n{pprint.pformat(round1_response)}')
-        is_complete = self.response_validator.validate_responses(round1_response)
+        is_complete = self.response_validator.validate_responses(dkg_id, 'round1', round1_response)
         
         if not is_complete:
             response = {
@@ -121,7 +142,7 @@ class Gateway(Libp2pBase):
                                    PROTOCOLS_ID[call_method], request_object.get(), round2_response, self.default_timeout, self.semaphore)
 
         logging.debug(f'Round2 dictionary response: \n{pprint.pformat(round2_response)}')
-        is_complete = self.response_validator.validate_responses(round2_response)
+        is_complete = self.response_validator.validate_responses(dkg_id, 'round2', round2_response)
 
         if not is_complete:
             response = {
@@ -150,10 +171,7 @@ class Gateway(Libp2pBase):
 
         logging.debug(f'Round3 dictionary response: \n{pprint.pformat(round3_response)}')
         
-        public_keys = {}
-        for peer_id, data in round1_response.items():
-            public_keys[peer_id] = data['broadcast']['public_key']
-        is_complete = self.response_validator.validate_responses(round3_response, public_keys)
+        is_complete = self.response_validator.validate_responses(dkg_id, 'round3', round3_response, round1_response, round2_response)
 
         if not is_complete:
             response = {
@@ -192,6 +210,7 @@ class Gateway(Libp2pBase):
         :param sleep_duration: Duration to sleep before checking again (in seconds).
         """
         call_method = "generate_nonces"
+        self.response_validator.data_manager.setup_table('nonces')
         #while True:
             # TODO: get the number of thread as an input and use multiple thread to get nonces
         average_time = []
@@ -214,7 +233,7 @@ class Gateway(Libp2pBase):
                                 PROTOCOLS_ID[call_method], request_object.get(), nonces, self.default_timeout, self.semaphore)
 
             logging.debug(f'Nonces dictionary response: \n{pprint.pformat(nonces)}')
-            is_completed = self.response_validator.validate_responses(nonces)
+            is_completed = self.response_validator.validate_responses('nonces', peer_id, nonces)
 
             if is_completed:
                 self.__nonces[peer_id] += nonces[peer_id]['nonces']
@@ -251,9 +270,10 @@ class Gateway(Libp2pBase):
         
         
         if len(peer_ids_with_timeout) > 0:
-            self.response_validator.validate_responses(peer_ids_with_timeout)
+            self.response_validator.validate_responses('nonces', peer_id, peer_ids_with_timeout)
             logging.warning(f'get_commitments => Timeout error occurred. peer ids with timeout: {peer_ids_with_timeout}')
         return commitments_dict
+    
     
 
     async def request_signature(self, dkg_key: Dict, sign_party_num: int) -> Dict:
@@ -267,12 +287,12 @@ class Gateway(Libp2pBase):
         call_method = "sign"
         dkg_id = dkg_key['dkg_id']
         party = dkg_key['party']
-        sign_party = self.response_validator.get_new_party(party, sign_party_num)
+        sign_party = self.response_validator.get_new_party(dkg_id, 'get_new_party', party, sign_party_num)
         commitments_dict = await self.get_commitments(sign_party, self.default_timeout)
         
         while len(commitments_dict) < len(sign_party):
             logging.warning('Retrying to get commitments with the new signing party...')
-            sign_party = self.response_validator.get_new_party(party, sign_party_num)
+            sign_party = self.response_validator.get_new_party(dkg_id, 'get_new_party', party, sign_party_num)
             if len(sign_party) < sign_party_num:
                 logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of available nodes')
                 return {
@@ -284,6 +304,7 @@ class Gateway(Libp2pBase):
         parameters = {
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
+            'dkg_public_key' : dkg_key['public_key']
         }
         request_object = RequestObject(dkg_id, call_method, GATEWAY_TOKEN, parameters)
 
@@ -291,11 +312,31 @@ class Gateway(Libp2pBase):
         async with trio.open_nursery() as nursery:
             for peer_id in sign_party:
                 destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send, destination_address, peer_id, 
-                                   PROTOCOLS_ID[call_method], request_object.get(), signatures, self.default_timeout, self.semaphore)
+
+                
+                nursery.start_soon(Wrappers.sign, self.send, dkg_key, destination_address, peer_id, 
+                                   PROTOCOLS_ID[call_method], request_object.get(), signatures, 
+                                   self.default_timeout, self.semaphore)
         
+        now = timeit.default_timer()
         logging.debug(f'Signatures dictionary response: \n{pprint.pformat(signatures)}')
-        is_complete = self.response_validator.validate_responses(signatures)
+        
+        
+
+        
+
+        message = [i['data'] for i in signatures.values()][0]
+        encoded_message = json.dumps(message)
+        signs = [i['signature_data'] for i in signatures.values()]
+        aggregated_public_nonces = [i['signature_data']['aggregated_public_nonce'] for i in signatures.values()]
+        if not Utils.check_list_equality(aggregated_public_nonces):
+            aggregated_public_nonce = TSS.frost_aggregate_nonce(encoded_message, commitments_dict, dkg_key['public_key'])
+            aggregated_public_nonce = TSS.pub_to_code(aggregated_public_nonce)
+            for peer_id, data in signatures.items():
+                if data['signature_data']['aggregated_public_nonce'] != aggregated_public_nonce:
+                    data['status'] = 'MALICIOUS'
+        
+        is_complete = self.response_validator.validate_responses(dkg_id, 'sign', signatures)
 
         if not is_complete:
             response = {
@@ -303,18 +344,16 @@ class Gateway(Libp2pBase):
             }
             logging.info(f'Signature response: {response}')
             return response
-
-        # Extract individual signatures and aggregate them
-        signs = [i['signature_data'] for i in signatures.values()]
-        # TODO: check if all signed messages are equal
-        message = [i['data'] for i in signatures.values()][0]
-        encoded_message = json.dumps(message)
-        aggregatedSign = TSS.frost_aggregate_signatures(signs, dkg_key['public_shares'], encoded_message, commitments_dict, dkg_key['public_key'])
-        
-        if TSS.frost_verify_group_signature(aggregatedSign):
-            aggregatedSign['result'] = 'SUCCESSFUL'
-            logging.info(f'Signature request response: {aggregatedSign["result"]}')
+        aggregated_public_nonce = TSS.code_to_pub(aggregated_public_nonces[0])
+        aggregated_sign = TSS.frost_aggregate_signatures(encoded_message, signs, 
+                                                        aggregated_public_nonce, 
+                                                        dkg_key['public_key'])
+        if TSS.frost_verify_group_signature(aggregated_sign):
+            aggregated_sign['result'] = 'SUCCESSFUL'
+            logging.info(f'Signature request response: {aggregated_sign["result"]}')
+            then = timeit.default_timer()
+            logging.debug(f'Aggregating the signatures takes {then - now} seconds.')
         else:
-            aggregatedSign['result'] = 'NOT_VERIFIED'
+            aggregated_sign['result'] = 'NOT_VERIFIED'
 
-        return aggregatedSign
+        return aggregated_sign

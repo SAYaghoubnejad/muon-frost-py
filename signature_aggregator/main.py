@@ -1,6 +1,6 @@
 import time
-from gateway import Gateway
-from gateway_config import PRIVATE
+from signature_aggregator import SignatureAggregator
+from sa_config import PRIVATE
 from common.configuration_settings import ConfigurationSettings
 from common.dns import DNS
 from common.utils import Utils
@@ -13,26 +13,22 @@ import sys
 import trio
 import logging
 
-async def run_dkg(gateway : Gateway, all_nodes: List[str], threshold: int, n: int, app_name: str, seed: int=42) -> None:
-    # Choose subnet from node peer IDs.
-    party_ids = Utils.get_new_random_subset(all_nodes, seed, n)
-    logging.debug(f'Chosen peer IDs: {party_ids}')
+async def run_dkg(gateway : SignatureAggregator, all_nodes: List[str], threshold: int, n: int, app_name: str, seed: int=42) -> None:
+    
 
     # Begin DKG protocol
     is_completed = False
     dkg_key = None
     while not is_completed:
-        party_ids = gateway.response_validator.get_new_party(party_ids)
-        if len(party_ids) < threshold:
-            dkg_id = dkg_key['dkg_id']
-            logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of available nodes')
-            dkg_key['result'] = 'FAIL'
+        dkg_key = await gateway.request_dkg(threshold, n, all_nodes, app_name, seed)
+        if dkg_key['dkg_id'] == None:
+            exit()
         
-        dkg_key = await gateway.request_dkg(threshold, n, party_ids, app_name)
         result = dkg_key['result']
         logging.info(f'The DKG result is {result}')
         if result == 'SUCCESSFUL':
             is_completed = True
+        #break
 
     return dkg_key
 
@@ -51,8 +47,8 @@ async def run(gateway_id: str, total_node_number: int, threshold: int, n: int, n
 
     # Initialize the Gateway with DNS lookup for the current node
     # TODO: Findout how to handle the tradeoff between number of semaphores and timeout..
-    gateway = Gateway(dns.lookup_gateway(gateway_id), PRIVATE, 
-                               dns, max_workers = 0, default_timeout = 1000)
+    gateway = SignatureAggregator(dns.lookup_gateway(gateway_id), PRIVATE, 
+                               dns, max_workers = 0, default_timeout = 50)
     app_name = 'sample_oracle'
 
     async with trio.open_nursery() as nursery:

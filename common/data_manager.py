@@ -1,3 +1,5 @@
+from typing import Dict
+
 class DataManager:
     """
     A class to manage in-memory data storage, organized in a dictionary format.
@@ -12,63 +14,76 @@ class DataManager:
         """
         Initializes the DataManager with an empty storage structure.
         """
-        self._storage = {}
+        self._storage: Dict = {}
 
-    def setup_database(self, database_name: str) -> None:
+    def setup_table(self, table_name: str) -> None:
         """
-        Initializes a new database within the storage.
+        Initializes a new table within the storage.
 
         Parameters:
-        database_name (str): The name of the new database to be added.
+        table_name (str): The name of the new table to be added.
         """
-        self._storage[database_name] = {}
+        self._storage[table_name] = {}
 
-    def save_data(self, database_name: str, key, value) -> None:
+    def save_data(self, table_name: str, key, value) -> None:
         """
-        Saves a single value under a specific key in the specified database.
+        Saves a single value under a specific key in the specified table.
 
         Parameters:
-        database_name (str): The name of the database.
+        table_name (str): The name of the table.
         key: The key under which the value is to be stored.
         value: The value to be stored.
         """
-        self._storage[database_name][key] = value
+        self._storage[table_name][key] = value
 
-    def add_data(self, database_name: str, key, value) -> None:
+    def add_data(self, table_name: str, key, value) -> None:
         """
-        Adds a value to a list under a specific key in the specified database.
+        Adds a value to a list under a specific key in the specified table.
         If the key does not exist, it creates a new list.
 
         Parameters:
-        database_name (str): The name of the database.
+        table_name (str): The name of the table.
         key: The key under which the value is to be added.
         value: The value to be added.
         """
-        if key not in self._storage[database_name].keys():
-            self._storage[database_name][key] = []
-        self._storage[database_name][key].append(value)
+        if key not in self._storage[table_name].keys():
+            self._storage[table_name][key] = []
+        self._storage[table_name][key].append(value)
 
-    def remove_data(self, database_name: str, key, value) -> None:
+    def remove_data(self, table_name: str, key, value) -> None:
         """
-        Removes a value from a list under a specific key in the specified database.
+        Removes a value from a list under a specific key in the specified table.
 
         Parameters:
-        database_name (str): The name of the database.
+        table_name (str): The name of the table.
         key: The key from which the value is to be removed.
         value: The value to be removed.
         """
-        if value in self._storage[database_name][key]:
-            self._storage[database_name][key].remove(value)
+        if value in self._storage[table_name][key]:
+            self._storage[table_name][key].remove(value)
 
-    def get_data(self, database_name: str, key):
+    def get_data(self, table_name: str, key):
         """
-        Retrieves data stored under a specific key in the specified database.
+        Retrieves data stored under a specific key in the specified table.
 
         Parameters:
-        database_name (str): The name of the database.
+        table_name (str): The name of the table.
         key: The key for which data is to be retrieved.
 
         Returns:
-        The data stored under the specified key in the specified database.
+        The data stored under the specified key in the specified table.
         """
-        return self._storage[database_name].get(key, None)
+        if self._storage.get(table_name) is None:
+            return None
+        return self._storage[table_name].get(key, None)
+
+    def remove_table(self, table_name: str) -> None:
+        """
+        Removes the whole table from the data manager.
+
+        Parameters:
+        table_name (str): The name of the table.
+
+        """
+        if self._storage.get(table_name) is not None:
+            self._storage.remove(table_name)

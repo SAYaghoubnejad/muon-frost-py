@@ -5,6 +5,9 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
+rm -rf logs
+mkdir logs
+
 range=$(( $1 - 1 ))
 
 for i in $(seq 0 "$range"); do

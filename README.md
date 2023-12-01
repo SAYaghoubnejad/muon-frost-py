@@ -52,18 +52,18 @@ Run multiple nodes using this command:
 
 After executing either of the above commands, wait until the node setup is complete. The setup is finished when the node API is printed along with a message indicating **Waiting for incoming connections...**
 
-Finally, run the gateway in the last terminal:
+Finally, run the signature aggregator in the last terminal:
 
 ```bash
-(venv) $ python gateway/main.py [number of nodes you ran] [threshold] [n] [number of signatures]
+(venv) $ python signature_aggregator/main.py [number of nodes you ran] [threshold] [n] [number of signatures]
 ```
 
-The gateway takes 4 parameters as input:
+The signature aggregator takes 4 parameters as input:
 
 1. `number of nodes you ran`: The number of active nodes.
 2. `threshold`: The threshold of the FROST algorithm, which is an integer ($t \leq n$).
-3. `n`: The number of nodes cooperating with the gateway to generate a distributed key ($n \leq m$).
-4. `number of signatures`: The number of signatures requested by the gateway upon completion of the Distributed Key Generation (DKG).
+3. `n`: The number of nodes cooperating with the signature aggregator to generate a distributed key ($n \leq m$).
+4. `number of signatures`: The number of signatures requested by the signature aggregator upon completion of the Distributed Key Generation (DKG).
 
 If you want to stop all the nodes, type the following command:
 
@@ -71,7 +71,7 @@ If you want to stop all the nodes, type the following command:
 (venv) $ ./stop_nodes.sh
 ```
 
-**Note:** Logs for each node and the gateway are stored in the `./logs` directory.
+**Note:** Logs for each node and the signature aggregator are stored in the `./logs` directory.
 
 ## Benchmarking
 
@@ -79,8 +79,16 @@ This evaluation is done on the Intel i7-6700HQ with 8 cores and 16GB RAM. (All t
 
 | Benchmark                     | DKG Time | Nonce Generation Avg. Time per Node | Signing Time |
 |-------------------------------|----------|-------------------------------------|--------------|
-|  7 of 10 with 15 active nodes | 1.331 sec| 0.724 sec                           | 0.238 sec    | 
-| 15 of 20 With 30 active nodes | 7.992 sec| 0.755 sec                           | 0.602 sec    |
-| 25 of 30 With 40 active nodes |26.253 sec| 0.757 sec                           | 1.317 sec    |
+|  7 of 10                      | 0.840 sec| 0.352 sec                           | 0.135 sec    | 
+| 15 of 20                      | 5.435 sec| 0.344 sec                           | 0.380 sec    |
+| 25 of 30                      |20.314 sec| 0.349 sec                           | 0.948 sec    |
+
+---
+
+For the non-local evaluation, we incorporated 30 node containers across three distinct countries and four different cities. Additionally, we employed a Signature Aggregator featuring dual vCPUs and an eight-gigabyte RAM configuration.
+
+| Benchmark                     | DKG Time | Nonce Generation Avg. Time per Node | Signing Time |
+|-------------------------------|----------|-------------------------------------|--------------|
+| 25 of 30                      | 7.400 sec| 1.594 sec                           | 0.725 sec    |
 
 ---

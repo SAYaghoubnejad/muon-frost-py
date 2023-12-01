@@ -1,4 +1,5 @@
 # Importing necessary libp2p components
+import timeit
 from libp2p.typing import TProtocol
 import libp2p.crypto.ed25519 as ed25519
 from libp2p.peer.peerinfo import info_from_p2p_addr
@@ -120,8 +121,9 @@ class Libp2pBase:
         result (Dict, optional): A dictionary to store response from the destination. Defaults to None.
         timeout (float, optional): The timeout for the connection attempt in seconds. Defaults to 5.0.
         """
-        
+        now = timeit.default_timer()
         destination = f"/ip4/{destination_address['ip']}/tcp/{destination_address['port']}/p2p/{destination_peer_id}"
+        logging.info(f'{destination_peer_id}{protocol_id} destination: {destination}')
         maddr = multiaddr.Multiaddr(destination)
         info = info_from_p2p_addr(maddr)
         with trio.move_on_after(timeout) as cancel_scope:
@@ -132,8 +134,8 @@ class Libp2pBase:
 
                 # Open a new stream for communication
                 stream = await self.host.new_stream(info.peer_id, [protocol_id])
+                
                 logging.debug(f"{destination_peer_id}{protocol_id} Opened a new stream to peer")
-
                 # Send the message
                 encoded_message = json.dumps(message).encode("utf-8")
                 await stream.write(encoded_message)
@@ -144,8 +146,10 @@ class Libp2pBase:
 
                 if result is not None:
                     response = await stream.read()
+                    logging.debug(f"{destination_peer_id}{protocol_id} Received response: {response}")
                     result[destination_peer_id] = json.loads(response.decode("utf-8"))
-                    logging.debug(f"{destination_peer_id}{protocol_id} Received response: {result[destination_peer_id]}")
+                    then = timeit.default_timer()
+                    logging.debug(f"{destination_peer_id}{protocol_id} takes: {then - now} seconds.")
 
             except Exception as e:
                 logging.error(f'{destination_peer_id}{protocol_id} libp2p_base => Exception occurred: {type(e).__name__}: {e}')
