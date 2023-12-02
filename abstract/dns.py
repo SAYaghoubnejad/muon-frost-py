@@ -9,21 +9,17 @@ class DNS(ABC):
     Note: If one wishes to use other data structures or another form of data, one 
     can inherit from this class and use the modified class. 
     """
+    @abstractmethod
+    def lookup_deployer(self, peer_id:str):
+        pass
+    
 
-    @abstractmethod
-    def add_peer_id(self):
-        pass
-    
-    @abstractmethod
-    def add_gateway(self):
-        pass
-    
     @abstractmethod
     def lookup_gateway(self, peer_id:str):
         pass
     
     @abstractmethod
-    def lookup(self, peer_id: str):
+    def lookup_node(self, peer_id: str):
         """
         Resolves the network details for a given peer ID.
 
