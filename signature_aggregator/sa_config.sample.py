@@ -4,7 +4,8 @@ PENALTY_LIST = {
     'SUCCESSFUL': 0,
     'ERROR': -2,
     'TIMEOUT': -1,
-    'COMPLAINT': -100
+    'COMPLAINT': -100,
+    'MALICIOUS': -100
 }
 
 REMOVE_THRESHOLD = -50

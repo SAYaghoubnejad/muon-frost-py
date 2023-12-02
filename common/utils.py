@@ -63,3 +63,10 @@ class Utils:
             'public_key': key_pair.public_key.serialize().hex(),
             'peer_id': peer_id.to_base58()
         }
+    
+    @staticmethod
+    def check_list_equality(list) -> bool:
+        if len(set(list)) == 1:
+            return True
+        else:
+            return False

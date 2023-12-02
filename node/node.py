@@ -3,6 +3,8 @@ from common.libp2p_config import PROTOCOLS_ID
 from abstract.dns import DNS
 from abstract.data_manager import DataManager
 from common.utils import Utils
+from common.TSS.tss import TSS
+
 from decorators import auth_decorator
 from unpacked_stream import UnpackedStream
 from distributed_key import DistributedKey
@@ -164,7 +166,14 @@ class Node(Libp2pBase):
         if round3_data['status'] == 'COMPLAINT':
             self.__remove_key(dkg_id)
         
-        response = json.dumps(round3_data).encode("utf-8")
+        if round3_data['status'] == 'SUCCESSFUL':
+            round3_data['validation']: self._key_pair.private_key.sign(round3_data['data']).hex()
+
+        data = {
+            "data": round3_data['data'],
+            "status": round3_data['status'],
+        }
+        response = json.dumps(data).encode("utf-8")
         try:
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["round3"]} Sent message: {response.decode()}')
@@ -217,6 +226,7 @@ class Node(Libp2pBase):
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
         commitments_list = parameters['commitments_list']
+        dkg_public_key = parameters['dkg_public_key']
 
         app_name = self.data_manager.get_data(dkg_id, 'app_name')
         
