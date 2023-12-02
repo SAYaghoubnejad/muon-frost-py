@@ -38,8 +38,8 @@ class Node(Libp2pBase):
         self.data_manager.setup_table('common_data')
         
 
-    def __add_new_key(self, dkg_id: str, threshold, n, party: List[str], app_name: str) -> None:
-        assert len(party) == n, f'There number of node in party must be equal to n for app {dkg_id}'
+    def __add_new_key(self, dkg_id: str, threshold, party: List[str], app_name: str) -> None:
+        n = len(party)
         assert self.peer_id in party, f'This node is not amoung specified party for app {dkg_id}'
         assert threshold <= n, f'Threshold must be <= n for app {dkg_id}'
         # TODO: check if this node is included in party
@@ -79,7 +79,6 @@ class Node(Libp2pBase):
         self.__add_new_key(
             dkg_id, 
             parameters['threshold'], 
-            parameters['n'],
             parameters['party'],
             app_name
             )

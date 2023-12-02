@@ -97,7 +97,6 @@ class SignatureAggregator(Libp2pBase):
             "dkg_id": dkg_id,
             'app_name': app_name,
             'threshold': threshold,
-            'n': len(party)
         }
         request_object = RequestObject(dkg_id, call_method, self.token, parameters)
         round1_response = {}
