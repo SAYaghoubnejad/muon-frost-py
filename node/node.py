@@ -19,12 +19,12 @@ import types
 class Node(Libp2pBase):
     def __init__(self, data_manager: DataManager, address: Dict[str, str],
                   secret: str, dns: DNS, gateway_validator: types.FunctionType,
-                  app_validator: types.FunctionType) -> None:
+                  app_interactor: types.FunctionType) -> None:
         super().__init__(address, secret)
         self.dns: DNS = dns
         self.distributed_keys: Dict[str, DistributedKey] = {}
         self.gateway_validator = gateway_validator
-        self.app_validator = app_validator
+        self.app_interactor = app_interactor
         # Define handlers for various protocol methods
         handlers = {
             'round1': self.round1_handler,
@@ -225,27 +225,18 @@ class Node(Libp2pBase):
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
         commitments_list = parameters['commitments_list']
-        dkg_public_key = parameters['dkg_public_key']
-
+        app_data = data['app_data']
+        
         app_name = self.data_manager.get_data(dkg_id, 'app_name')
         
         if app_name is None:
             return
-        
-
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
     
-        signature = ''
-        message = self.app_validator(f'{app_name}', 'sign')
-        encoded_message = json.dumps(message)
-        signature = self.distributed_keys[dkg_id].frost_sign(commitments_list, encoded_message)
 
-        data = {
-            'data': message,
-            'signature_data': signature,
-            "status": "SUCCESSFUL",
-        }
+        data = self.app_interactor(self.distributed_keys[dkg_id].frost_sign, app_data, commitments_list)
+
         response = json.dumps(data).encode("utf-8")
         try:
             await unpacked_stream.stream.write(response)

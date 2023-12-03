@@ -3,7 +3,7 @@ from abstract.dns import DNS
 from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
-from decorators import seed_validation_decorator
+
 from utils import RequestObject, Wrappers
 from typing import List, Dict, Type
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
@@ -23,8 +23,8 @@ class SignatureAggregator(Libp2pBase):
     """
 
     def __init__(self, address: Dict[str, str], secret: str, dns: DNS,
-                  data_manager: object, penalty_class_type: Type, seed_validator: types.FunctionType,
-                  response_validator_type: Type, token: str,
+                  data_manager: object, penalty_class_type: Type,
+                  response_validator_type: Type,
                   max_workers: int = 0, default_timeout: int = 200) -> None:
         """
         Initialize a new SignatureAggregator instance.
@@ -37,8 +37,7 @@ class SignatureAggregator(Libp2pBase):
         self.dns_resolver: DNS = dns
         self.__nonces: Dict[str, list[Dict]] = {}
         self.response_validator = response_validator_type(data_manager, penalty_class_type)
-        self.seed_validator = seed_validator
-        self.token = token
+        self.token = ''
         if max_workers != 0:
             self.semaphore = trio.Semaphore(max_workers)
         else:
@@ -59,8 +58,6 @@ class SignatureAggregator(Libp2pBase):
                     round2_data.append(entry)
         return round2_data
 
-    # TODO: update app_name
-    @seed_validation_decorator()
     async def request_dkg(self, threshold: int, n: int, all_nodes: List[str], app_name: str, seed: int) -> Dict:
         """
         Initiates the DKG protocol with the specified parties.
@@ -277,7 +274,10 @@ class SignatureAggregator(Libp2pBase):
         return commitments_dict
     
 
-    async def request_signature(self, dkg_key: Dict, sign_party_num: int) -> Dict:
+    async def request_signature(self, dkg_key: Dict, sign_party_num: int, 
+                                app_request_id: str, app_method: str, 
+                                app_params: Dict, app_sign_params: Dict, 
+                                app_hash: str, app_result: Dict) -> Dict:
         """
         Requests signatures from the specified parties for a given message.
 
@@ -305,9 +305,16 @@ class SignatureAggregator(Libp2pBase):
         parameters = {
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
-            'dkg_public_key' : dkg_key['public_key']
         }
-        request_object = RequestObject(dkg_id, call_method, self.token, parameters)
+        app_data = {
+            'app_request_id': app_request_id,
+            'app_method': app_method,
+            'app_params': app_params,
+            'app_result': app_result,
+            'app_sign_params': app_sign_params,
+            'app_hash': app_hash,
+        }
+        request_object = RequestObject(dkg_id, call_method, self.token, parameters, app_data)
 
         signatures = {}
         async with trio.open_nursery() as nursery:

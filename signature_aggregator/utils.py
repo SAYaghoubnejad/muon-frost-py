@@ -10,12 +10,13 @@ import json
 import logging
 
 class RequestObject:
-    def __init__(self, request_id: str, call_method: str, gateway_authorization: str, parameters: Dict) -> None:
+    def __init__(self, request_id: str, call_method: str, gateway_authorization: str, parameters: Dict,
+                 app_data: Dict = None) -> None:
         self.request_id: str = request_id
         self.call_method: str = call_method
         self.gateway_authorization: str = gateway_authorization
         self.parameters: Dict = parameters
-
+        self.app_data = app_data
 
     def get(self):
         result = {
@@ -24,6 +25,8 @@ class RequestObject:
             'gateway_authorization': self.gateway_authorization,
             "parameters": self.parameters
         }
+        if self.app_data:
+            result['app_data'] = self.app_data
         return result
 
 

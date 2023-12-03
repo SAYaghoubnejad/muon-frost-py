@@ -22,7 +22,11 @@ class Evaluator(ABC):
         pass
     
     @abstractmethod
-    def validate_responses(self, table_name: str, key: str, responses: Dict[str, Dict], 
+    def evaluate_responses(self, table_name: str, key: str, responses: Dict[str, Dict]):
+        pass
+
+    @abstractmethod
+    def evaluate_dkg(self, table_name: str, key: str, responses: Dict[str, Dict], 
                            round1_response: Dict = None, round2_response: Dict = None):
         pass
 

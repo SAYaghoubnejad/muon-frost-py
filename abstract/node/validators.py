@@ -2,7 +2,7 @@ from typing import List
 from abc import ABC, abstractmethod
 
 
-class NodeValidators(ABC):
+class Validators(ABC):
 
     @staticmethod
     @abstractmethod
@@ -15,5 +15,5 @@ class NodeValidators(ABC):
         pass
 
     @abstractmethod
-    def validate_app(self, message):
+    def app_interactor(self, message):
         pass
