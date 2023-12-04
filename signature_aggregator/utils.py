@@ -1,5 +1,4 @@
 from common.TSS.tss import TSS
-from common.libp2p_config import PROTOCOLS_ID
 from libp2p.peer.id import ID as PeerID
 from libp2p.typing import TProtocol
 
@@ -8,27 +7,6 @@ import trio
 import types
 import json
 import logging
-
-class RequestObject:
-    def __init__(self, request_id: str, call_method: str, gateway_authorization: str, parameters: Dict,
-                 app_data: Dict = None) -> None:
-        self.request_id: str = request_id
-        self.call_method: str = call_method
-        self.gateway_authorization: str = gateway_authorization
-        self.parameters: Dict = parameters
-        self.app_data = app_data
-
-    def get(self):
-        result = {
-            "request_id": f"{self.request_id}_{self.call_method}",
-            "method": self.call_method,
-            'gateway_authorization': self.gateway_authorization,
-            "parameters": self.parameters
-        }
-        if self.app_data:
-            result['app_data'] = self.app_data
-        return result
-
 
 
 class Wrappers:

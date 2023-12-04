@@ -175,7 +175,7 @@ class DistributedKey:
                 sender_secret_signature
             )
 
-            # TODO: add these checking in gateway in addition to nodes
+            # TODO: add these checking in SA in addition to nodes
             if not secret_verification or not coef0_verification:
                 # TODO: how to handle complaint
                 self.malicious.append({"id": sender_id, "complaint": data})                

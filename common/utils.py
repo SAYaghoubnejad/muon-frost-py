@@ -70,3 +70,32 @@ class Utils:
             return True
         else:
             return False
+    
+    @staticmethod
+    def get_request(url) -> Dict:
+        try:
+            result = requests.get(url).json()
+            return result
+        except Exception as e:
+            return None
+
+
+class RequestObject:
+    def __init__(self, request_id: str, call_method: str, sa_authorization: str, parameters: Dict,
+                 app_data: Dict = None) -> None:
+        self.request_id: str = request_id
+        self.call_method: str = call_method
+        self.sa_authorization: str = sa_authorization
+        self.parameters: Dict = parameters
+        self.app_data = app_data
+
+    def get(self):
+        result = {
+            "request_id": f"{self.request_id}_{self.call_method}",
+            "method": self.call_method,
+            'sa_authorization': self.sa_authorization,
+            "parameters": self.parameters
+        }
+        if self.app_data:
+            result['app_data'] = self.app_data
+        return result

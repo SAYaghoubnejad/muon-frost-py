@@ -12,11 +12,11 @@ def auth_decorator(handler):
         try:
             data = json.loads(raw_data)
             # Perform validation and authorization checks
-            if self.gateway_validator(data, unpacked_stream.sender_id):
+            if self.sa_validator(data, unpacked_stream.sender_id):
                 return await handler(self, unpacked_stream)
             else:
                 logging.error('Node Decorator => Exception occurred. Unauthorized gatewary.')
-                raise Exception("Unauthorized gateway")
+                raise Exception("Unauthorized SA")
         except json.JSONDecodeError:
             raise Exception("Invalid JSON data")
         

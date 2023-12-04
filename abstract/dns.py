@@ -13,9 +13,12 @@ class DNS(ABC):
     def lookup_deployer(self, peer_id:str):
         pass
     
+    @abstractmethod
+    def get_all_deployers(self, n:int = None) -> List[str]:
+        pass
 
     @abstractmethod
-    def lookup_gateway(self, peer_id:str):
+    def lookup_sa(self, peer_id:str):
         pass
     
     @abstractmethod

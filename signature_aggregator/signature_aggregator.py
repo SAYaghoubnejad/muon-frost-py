@@ -4,7 +4,8 @@ from common.libp2p_config import PROTOCOLS_ID
 from common.TSS.tss import TSS
 from common.utils import Utils
 
-from utils import RequestObject, Wrappers
+from common.utils import RequestObject
+from utils import Wrappers
 from typing import List, Dict, Type
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
@@ -24,7 +25,7 @@ class SignatureAggregator(Libp2pBase):
 
     def __init__(self, address: Dict[str, str], secret: str, dns: DNS,
                   data_manager: object, penalty_class_type: Type,
-                  response_validator_type: Type,
+                  node_evaluator_type: Type, registry_url: str,
                   max_workers: int = 0, default_timeout: int = 200) -> None:
         """
         Initialize a new SignatureAggregator instance.
@@ -36,169 +37,15 @@ class SignatureAggregator(Libp2pBase):
         super().__init__(address, secret)
         self.dns_resolver: DNS = dns
         self.__nonces: Dict[str, list[Dict]] = {}
-        self.response_validator = response_validator_type(data_manager, penalty_class_type)
+        self.node_evaluator = node_evaluator_type(data_manager, penalty_class_type)
+        self.registry_url = registry_url
         self.token = ''
         if max_workers != 0:
             self.semaphore = trio.Semaphore(max_workers)
         else:
             self.semaphore = None
         self.default_timeout = default_timeout
-    def _gather_round2_data(self, peer_id: str, data: Dict) -> List:
-        """
-        Collects round 2 data for a specific peer_id.
 
-        :param peer_id: The ID of the peer.
-        :param data: The data dictionary from round 1.
-        :return: A list of data entries for the specified peer.
-        """
-        round2_data = []
-        for _, round_data in data.items():
-            for entry in round_data['broadcast']:
-                if entry['receiver_id'] == peer_id:
-                    round2_data.append(entry)
-        return round2_data
-
-    async def request_dkg(self, threshold: int, n: int, all_nodes: List[str], app_name: str, seed: int) -> Dict:
-        """
-        Initiates the DKG protocol with the specified parties.
-
-        :param threshold: The threshold number of parties needed to reconstruct the key.
-        :param num_parties: The total number of parties involved in the DKG.
-        :param party_ids: List of party identifiers.
-        :param app_name: The name of app for which the key is generated.
-        :return: A dictionary containing the DKG public key and shares.
-        """
-        # Choose subnet from node peer IDs.
-        party = Utils.get_new_random_subset(all_nodes, seed, n)
-        logging.debug(f'Chosen peer IDs: {party}')
-
-        dkg_id = Utils.generate_random_uuid()
-        self.response_validator.data_manager.setup_table(dkg_id)
-        party = self.response_validator.get_new_party(dkg_id, 'get_new_party', party)
-
-        if len(party) < threshold:
-            response = {
-                'result': 'FAIL',
-                "dkg_id": None,
-            }
-            logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of available nodes')
-            return response
-        
-        
-        
-        # Execute Round 1 of the protocol
-        call_method = "round1"
-
-        parameters = {
-            "party": party,
-            "dkg_id": dkg_id,
-            'app_name': app_name,
-            'threshold': threshold,
-        }
-        request_object = RequestObject(dkg_id, call_method, self.token, parameters)
-        round1_response = {}
-        async with trio.open_nursery() as nursery:
-            for peer_id in party:
-                destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send, destination_address, peer_id, 
-                                   PROTOCOLS_ID[call_method], request_object.get(), round1_response, self.default_timeout, self.semaphore)
-
-        logging.debug(f'Round1 dictionary response: \n{pprint.pformat(round1_response)}')
-        is_complete = self.response_validator.validate_responses(dkg_id, 'round1', round1_response)
-        
-        if not is_complete:
-            response = {
-                'result': 'FAIL',
-                "dkg_id": dkg_id,
-            }
-            logging.info(f'DKG request response: {response}')
-            return response
-        
-        # TODO: error handling (if verification failed)
-        # check validation of each node
-        for peer_id, data in round1_response.items():
-            data_bytes = json.dumps(data['broadcast']).encode('utf-8')
-            validation = bytes.fromhex(data['validation'])
-            public_key_bytes = bytes.fromhex(self.dns_resolver.lookup(peer_id)['public_key'])
-            
-            public_key = Secp256k1PublicKey.deserialize(public_key_bytes)
-            logging.debug(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
-
-        # Execute Round 2 of the protocol
-        call_method = "round2"
-        parameters = {
-            "dkg_id": dkg_id,
-            'broadcasted_data': round1_response
-        }
-        request_object = RequestObject(dkg_id, call_method, self.token, parameters)
-
-        round2_response = {}
-        async with trio.open_nursery() as nursery:
-            for peer_id in party:
-                destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send, destination_address, peer_id, 
-                                   PROTOCOLS_ID[call_method], request_object.get(), round2_response, self.default_timeout, self.semaphore)
-
-        logging.debug(f'Round2 dictionary response: \n{pprint.pformat(round2_response)}')
-        is_complete = self.response_validator.validate_responses(dkg_id, 'round2', round2_response)
-
-        if not is_complete:
-            response = {
-                'result': 'FAIL',
-                "dkg_id": dkg_id,
-            }
-            logging.info(f'DKG request response: {response}')
-            return response
-
-        # Execute Round 3 of the protocol
-        call_method = "round3"
-        
-        round3_response = {}
-        
-        async with trio.open_nursery() as nursery:
-            for peer_id in party:
-                parameters = {
-                    "dkg_id": dkg_id,
-                    'send_data': self._gather_round2_data(peer_id, round2_response)
-                }
-                request_object = RequestObject(dkg_id, call_method, self.token, parameters)
-
-                destination_address = self.dns_resolver.lookup(peer_id)
-                nursery.start_soon(self.send, destination_address, peer_id, 
-                                   PROTOCOLS_ID[call_method], request_object.get(), round3_response, self.default_timeout, self.semaphore)
-
-        logging.debug(f'Round3 dictionary response: \n{pprint.pformat(round3_response)}')
-        
-        is_complete = self.response_validator.validate_responses(dkg_id, 'round3', round3_response, round1_response, round2_response)
-
-        if not is_complete:
-            response = {
-                'result': 'FAIL',
-                "dkg_id": dkg_id,
-            }
-            logging.info(f'DKG request response: {response}')
-            return response
-
-        for id1, data1 in round3_response.items():
-            for id2, data2 in round3_response.items():
-                # TODO: handle this assertion
-                assert data1['data']['dkg_public_key'] == data2['data']['dkg_public_key'],\
-                    f'The DKG key of node {id1} is not consistance with the DGK key of node {id2}'
-        
-        public_key = list(round3_response.values())[0]['data']['dkg_public_key']
-        public_shares = {}
-        for id, data in round3_response.items():
-            public_shares[int.from_bytes(PeerID.from_base58(id).to_bytes(), 'big')] = data['data']['public_share']
-        response = {
-            'dkg_id': dkg_id,
-            'public_key': public_key,
-            'public_shares': public_shares,
-            'party': party,
-            'result': 'SUCCESSFUL'
-        }
-        logging.info(f'DKG response: {response}')
-        return response
-    
     async def maintain_nonces(self, min_number_of_nonces: int=10, sleep_time: int=2) -> None:
         """
         Continuously maintains a list of nonces for each peer.
@@ -208,41 +55,41 @@ class SignatureAggregator(Libp2pBase):
         :param sleep_duration: Duration to sleep before checking again (in seconds).
         """
         call_method = "generate_nonces"
-        self.response_validator.data_manager.setup_table('nonces')
-        #while True:
-            # TODO: get the number of thread as an input and use multiple thread to get nonces
-        average_time = []
-        peer_ids = self.dns_resolver.get_all_nodes()
-        for peer_id in peer_ids:
-            self.__nonces.setdefault(peer_id, [])
-            if len(self.__nonces[peer_id]) >= min_number_of_nonces:
-                continue
-            
-            start_time = timeit.default_timer()
-            req_id = Utils.generate_random_uuid()
+        self.node_evaluator.data_manager.setup_table('nonces')
+        while True:
+            average_time = []
+            peer_ids = self.dns_resolver.get_all_nodes()
+            for peer_id in peer_ids:
+                self.__nonces.setdefault(peer_id, [])
+                if len(self.__nonces[peer_id]) >= min_number_of_nonces:
+                    continue
+                
+                start_time = timeit.default_timer()
+                req_id = Utils.generate_random_uuid()
 
-            parameters = {
-                'number_of_nonces': min_number_of_nonces * 10,
-            }
-            request_object = RequestObject(req_id, call_method, self.token, parameters)
+                parameters = {
+                    'number_of_nonces': min_number_of_nonces * 10,
+                }
+                request_object = RequestObject(req_id, call_method, self.token, parameters)
 
-            nonces = {}
-            destination_address = self.dns_resolver.lookup(peer_id)
-            await self.send(destination_address, peer_id,
-                                PROTOCOLS_ID[call_method], request_object.get(), nonces, self.default_timeout, self.semaphore)
+                nonces = {}
+                destination_address = self.dns_resolver.lookup(peer_id)
+                await self.send(destination_address, peer_id,
+                                    PROTOCOLS_ID[call_method], request_object.get(), nonces, self.default_timeout, self.semaphore)
 
-            logging.debug(f'Nonces dictionary response: \n{pprint.pformat(nonces)}')
-            is_completed = self.response_validator.validate_responses('nonces', peer_id, nonces)
+                logging.debug(f'Nonces dictionary response: \n{pprint.pformat(nonces)}')
+                is_completed = self.node_evaluator.evaluate_responses('nonces', peer_id, nonces)
 
-            if is_completed:
-                self.__nonces[peer_id] += nonces[peer_id]['nonces']
-            
-            end_time = timeit.default_timer()
-            logging.info(f'Getting nonces from peer ID {peer_id} takes {end_time - start_time} seconds.')
-            average_time.append(end_time-start_time)
-            #await trio.sleep(sleep_time)
-        average_time = sum(average_time) / len(average_time)
-        logging.info(f'Nonce generation average time: {average_time}')
+                if is_completed:
+                    self.__nonces[peer_id] += nonces[peer_id]['nonces']
+                
+                end_time = timeit.default_timer()
+                logging.debug(f'Getting nonces from peer ID {peer_id} takes {end_time - start_time} seconds.')
+                average_time.append(end_time-start_time)
+                await trio.sleep(sleep_time)
+            average_time = sum(average_time) / len(average_time)
+            logging.info(f'Nonce generation average time from all nodes: {average_time}')
+    
     async def get_commitments(self, party: List[str], timeout: int = 5) -> Dict:
         """
         Retrieves a dictionary of commitments from the nonces for each party.
@@ -269,11 +116,15 @@ class SignatureAggregator(Libp2pBase):
         
         
         if len(peer_ids_with_timeout) > 0:
-            self.response_validator.validate_responses('nonces', peer_id, peer_ids_with_timeout)
+            self.node_evaluator.evaluate_responses('nonces', peer_id, peer_ids_with_timeout)
             logging.warning(f'get_commitments => Timeout error occurred. peer ids with timeout: {peer_ids_with_timeout}')
         return commitments_dict
     
-
+    async def maintain_dkg_list(self):
+        self.node_evaluator.data_manager.setup_table('dkg_list')
+        while True:
+            new_data = Utils.get_request()
+            self.node_evaluator.data_manager.save_data('')
     async def request_signature(self, dkg_key: Dict, sign_party_num: int, 
                                 app_request_id: str, app_method: str, 
                                 app_params: Dict, app_sign_params: Dict, 
@@ -288,12 +139,12 @@ class SignatureAggregator(Libp2pBase):
         call_method = "sign"
         dkg_id = dkg_key['dkg_id']
         party = dkg_key['party']
-        sign_party = self.response_validator.get_new_party(dkg_id, 'get_new_party', party, sign_party_num)
+        sign_party = self.node_evaluator.get_new_party(dkg_id, 'get_new_party', party, sign_party_num)
         commitments_dict = await self.get_commitments(sign_party, self.default_timeout)
         
         while len(commitments_dict) < len(sign_party):
             logging.warning('Retrying to get commitments with the new signing party...')
-            sign_party = self.response_validator.get_new_party(dkg_id, 'get_new_party', party, sign_party_num)
+            sign_party = self.node_evaluator.get_new_party(dkg_id, 'get_new_party', party, sign_party_num)
             if len(sign_party) < sign_party_num:
                 logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of available nodes')
                 return {
@@ -344,7 +195,7 @@ class SignatureAggregator(Libp2pBase):
                 if data['signature_data']['aggregated_public_nonce'] != aggregated_public_nonce:
                     data['status'] = 'MALICIOUS'
         
-        is_complete = self.response_validator.validate_responses(dkg_id, 'sign', signatures)
+        is_complete = self.node_evaluator.evaluate_responses(dkg_id, 'sign', signatures)
 
         if not is_complete:
             response = {

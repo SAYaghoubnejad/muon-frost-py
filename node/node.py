@@ -18,12 +18,12 @@ import types
 
 class Node(Libp2pBase):
     def __init__(self, data_manager: DataManager, address: Dict[str, str],
-                  secret: str, dns: DNS, gateway_validator: types.FunctionType,
+                  secret: str, dns: DNS, sa_validator: types.FunctionType,
                   app_interactor: types.FunctionType) -> None:
         super().__init__(address, secret)
         self.dns: DNS = dns
         self.distributed_keys: Dict[str, DistributedKey] = {}
-        self.gateway_validator = gateway_validator
+        self.sa_validator = sa_validator
         self.app_interactor = app_interactor
         # Define handlers for various protocol methods
         handlers = {
@@ -165,12 +165,14 @@ class Node(Libp2pBase):
         if round3_data['status'] == 'COMPLAINT':
             self.__remove_key(dkg_id)
         
+        round3_data['validation'] = None
         if round3_data['status'] == 'SUCCESSFUL':
             round3_data['validation']: self._key_pair.private_key.sign(round3_data['data']).hex()
 
         data = {
             "data": round3_data['data'],
             "status": round3_data['status'],
+            "validation": round3_data['validation']
         }
         response = json.dumps(data).encode("utf-8")
         try:
@@ -229,8 +231,6 @@ class Node(Libp2pBase):
         
         app_name = self.data_manager.get_data(dkg_id, 'app_name')
         
-        if app_name is None:
-            return
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
     
