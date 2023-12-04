@@ -9,14 +9,7 @@ class DNS(ABC):
     Note: If one wishes to use other data structures or another form of data, one 
     can inherit from this class and use the modified class. 
     """
-    @abstractmethod
-    def lookup_deployer(self, peer_id:str):
-        pass
     
-    @abstractmethod
-    def get_all_deployers(self, n:int = None) -> List[str]:
-        pass
-
     @abstractmethod
     def lookup_sa(self, peer_id:str):
         pass
@@ -34,6 +27,10 @@ class DNS(ABC):
         """
         pass
     
+    @abstractmethod
+    def is_deployer(self, peer_id: str) -> bool:
+        pass
+
     @abstractmethod
     def get_all_nodes(self, n:int = None) -> List[str]:
         pass

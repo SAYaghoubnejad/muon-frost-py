@@ -1,11 +1,11 @@
-from common.libp2p_base import Libp2pBase
-from abstract.dns import DNS
-from common.libp2p_config import PROTOCOLS_ID
-from common.TSS.tss import TSS
-from common.utils import Utils
+from muon_frost_py.common.libp2p_base import Libp2pBase
+from muon_frost_py.abstract.dns import DNS
+from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
+from muon_frost_py.common.TSS.tss import TSS
+from muon_frost_py.common.utils import Utils
 
-from common.utils import RequestObject
-from utils import Wrappers
+from muon_frost_py.common.utils import RequestObject
+from muon_frost_py.sa.utils import Wrappers
 from typing import List, Dict, Type
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
@@ -17,7 +17,7 @@ import logging
 import json
 import timeit
 
-class SignatureAggregator(Libp2pBase):
+class SA(Libp2pBase):
     """
     SignatureAggregator class inherits from Libp2pBase, provides functionality for DKG (Distributed Key Generation)
     protocol over a libp2p network.
@@ -45,7 +45,8 @@ class SignatureAggregator(Libp2pBase):
         else:
             self.semaphore = None
         self.default_timeout = default_timeout
-
+    def salam(self):
+        logging.info('salam!')
     async def maintain_nonces(self, min_number_of_nonces: int=10, sleep_time: int=2) -> None:
         """
         Continuously maintains a list of nonces for each peer.
@@ -73,7 +74,7 @@ class SignatureAggregator(Libp2pBase):
                 request_object = RequestObject(req_id, call_method, self.token, parameters)
 
                 nonces = {}
-                destination_address = self.dns_resolver.lookup(peer_id)
+                destination_address = self.dns_resolver.lookup_node(peer_id)
                 await self.send(destination_address, peer_id,
                                     PROTOCOLS_ID[call_method], request_object.get(), nonces, self.default_timeout, self.semaphore)
 
@@ -90,6 +91,18 @@ class SignatureAggregator(Libp2pBase):
             average_time = sum(average_time) / len(average_time)
             logging.info(f'Nonce generation average time from all nodes: {average_time}')
     
+    async def maintain_dkg_list(self):
+        self.node_evaluator.data_manager.setup_table('dkg_list')
+        while True:
+            new_data: Dict = Utils.get_request(self.registry_url)
+            if not new_data:
+                await trio.sleep(0.5)
+                continue
+            for id, data in new_data.items():
+                self.node_evaluator.data_manager.save_data('dkg_list', id, data)
+            await trio.sleep(5 * 60) # wait for 5 mins
+
+
     async def get_commitments(self, party: List[str], timeout: int = 5) -> Dict:
         """
         Retrieves a dictionary of commitments from the nonces for each party.
@@ -120,11 +133,8 @@ class SignatureAggregator(Libp2pBase):
             logging.warning(f'get_commitments => Timeout error occurred. peer ids with timeout: {peer_ids_with_timeout}')
         return commitments_dict
     
-    async def maintain_dkg_list(self):
-        self.node_evaluator.data_manager.setup_table('dkg_list')
-        while True:
-            new_data = Utils.get_request()
-            self.node_evaluator.data_manager.save_data('')
+    
+        
     async def request_signature(self, dkg_key: Dict, sign_party_num: int, 
                                 app_request_id: str, app_method: str, 
                                 app_params: Dict, app_sign_params: Dict, 
@@ -170,7 +180,7 @@ class SignatureAggregator(Libp2pBase):
         signatures = {}
         async with trio.open_nursery() as nursery:
             for peer_id in sign_party:
-                destination_address = self.dns_resolver.lookup(peer_id)
+                destination_address = self.dns_resolver.lookup_node(peer_id)
 
                 
                 nursery.start_soon(Wrappers.sign, self.send, dkg_key, destination_address, peer_id, 

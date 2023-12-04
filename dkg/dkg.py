@@ -99,7 +99,7 @@ class DkgApplicator(Libp2pBase):
         round1_response = {}
         async with trio.open_nursery() as nursery:
             for peer_id in party:
-                destination_address = self.dns_resolver.lookup(peer_id)
+                destination_address = self.dns_resolver.lookup_node(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
                                    PROTOCOLS_ID[call_method], request_object.get(), round1_response, self.default_timeout, self.semaphore)
 
@@ -119,7 +119,7 @@ class DkgApplicator(Libp2pBase):
         for peer_id, data in round1_response.items():
             data_bytes = json.dumps(data['broadcast']).encode('utf-8')
             validation = bytes.fromhex(data['validation'])
-            public_key_bytes = bytes.fromhex(self.dns_resolver.lookup(peer_id)['public_key'])
+            public_key_bytes = bytes.fromhex(self.dns_resolver.lookup_node(peer_id)['public_key'])
             
             public_key = Secp256k1PublicKey.deserialize(public_key_bytes)
             logging.debug(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
@@ -135,7 +135,7 @@ class DkgApplicator(Libp2pBase):
         round2_response = {}
         async with trio.open_nursery() as nursery:
             for peer_id in party:
-                destination_address = self.dns_resolver.lookup(peer_id)
+                destination_address = self.dns_resolver.lookup_node(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
                                    PROTOCOLS_ID[call_method], request_object.get(), round2_response, self.default_timeout, self.semaphore)
 
@@ -163,7 +163,7 @@ class DkgApplicator(Libp2pBase):
                 }
                 request_object = RequestObject(dkg_id, call_method, self.token, parameters)
 
-                destination_address = self.dns_resolver.lookup(peer_id)
+                destination_address = self.dns_resolver.lookup_node(peer_id)
                 nursery.start_soon(self.send, destination_address, peer_id, 
                                    PROTOCOLS_ID[call_method], request_object.get(), round3_response, self.default_timeout, self.semaphore)
 

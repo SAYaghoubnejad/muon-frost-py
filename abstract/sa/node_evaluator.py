@@ -1,6 +1,6 @@
 from typing import Dict, List, Type
 from abc import ABC, abstractmethod
-
+from muon_frost_py.abstract.dns import DNS
 
 class Penalty:
     @abstractmethod
@@ -14,8 +14,8 @@ class Penalty:
 class Evaluator(ABC):
     def __init__(self, data_manager, penalty_class_type: Penalty) -> None:
         self.penalties: Dict = {}
-        self.data_manager = data_manager
-        self.penalty_class_type = penalty_class_type
+        self.data_manager: DNS  = data_manager
+        self.penalty_class_type: Penalty = penalty_class_type
 
     @abstractmethod
     def get_new_party(self, table_name: str, key: str, seed: int, n: int=None):       
