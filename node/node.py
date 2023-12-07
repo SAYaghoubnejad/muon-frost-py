@@ -1,7 +1,7 @@
 from common.libp2p_base import Libp2pBase
 from common.libp2p_config import PROTOCOLS_ID
-from abstract.dns import DNS
-from abstract.data_manager import DataManager
+from muon_frost_py.abstract.node.node_info import NodeInfo
+from muon_frost_py.abstract.node.data_manager import DataManager
 from common.utils import Utils
 from common.TSS.tss import TSS
 
@@ -18,13 +18,13 @@ import types
 
 class Node(Libp2pBase):
     def __init__(self, data_manager: DataManager, address: Dict[str, str],
-                  secret: str, dns: DNS, sa_validator: types.FunctionType,
-                  app_interactor: types.FunctionType) -> None:
+                  secret: str, node_info: NodeInfo, sa_validator: types.FunctionType,
+                  data_validator: types.FunctionType) -> None:
         super().__init__(address, secret)
-        self.dns: DNS = dns
+        self.node_info: NodeInfo = node_info
         self.distributed_keys: Dict[str, DistributedKey] = {}
         self.sa_validator = sa_validator
-        self.app_interactor = app_interactor
+        self.data_validator = data_validator
         # Define handlers for various protocol methods
         handlers = {
             'round1': self.round1_handler,
@@ -35,21 +35,20 @@ class Node(Libp2pBase):
         }
         self.set_protocol_and_handler(PROTOCOLS_ID, handlers)
         self.data_manager: DataManager = data_manager
-        self.data_manager.setup_table('common_data')
+        self.dkg_data = {}
         
 
     def __add_new_key(self, dkg_id: str, threshold, party: List[str], app_name: str) -> None:
-        n = len(party)
         assert self.peer_id in party, f'This node is not amoung specified party for app {dkg_id}'
-        assert threshold <= n, f'Threshold must be <= n for app {dkg_id}'
+        assert threshold <= len(party), f'Threshold must be <= n for app {dkg_id}'
         # TODO: check if this node is included in party
         
         partners = party
         partners.remove(self.peer_id)
-        self.data_manager.setup_table(dkg_id)
-        self.data_manager.save_data(dkg_id, 'app_name', app_name)
+        self.dkg_data[dkg_id] = {'app_name': app_name}
 
-        self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, threshold, n, self.peer_id, partners) 
+
+        self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, threshold, len(party), self.peer_id, partners) 
     
     def __remove_key(self, dkg_id: str) -> None:
         if self.distributed_keys.get(dkg_id) is not None:
@@ -123,7 +122,7 @@ class Node(Libp2pBase):
             # check validation of each node
             data_bytes = json.dumps(data['broadcast']).encode('utf-8')
             validation = bytes.fromhex(data['validation'])
-            public_key_bytes = bytes.fromhex(self.dns.lookup(peer_id)['public_key'])
+            public_key_bytes = bytes.fromhex(self.node_info.lookup_node(peer_id)['public_key'])
             public_key = Secp256k1PublicKey.deserialize(public_key_bytes)
             broadcasted_data.append(data['broadcast'])
             logging.debug(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
@@ -228,14 +227,10 @@ class Node(Libp2pBase):
         dkg_id = parameters['dkg_id']
         commitments_list = parameters['commitments_list']
         app_data = data['app_data']
-        
-        app_name = self.data_manager.get_data(dkg_id, 'app_name')
-        
+
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
-    
-
-        data = self.app_interactor(self.distributed_keys[dkg_id].frost_sign, app_data, commitments_list)
+        data = self.data_validator(self.distributed_keys[dkg_id].frost_sign, app_data, commitments_list)
 
         response = json.dumps(data).encode("utf-8")
         try:

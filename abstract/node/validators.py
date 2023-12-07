@@ -4,17 +4,11 @@ from abc import ABC, abstractmethod
 
 
 class Validators(ABC):
-
     @staticmethod
     @abstractmethod
-    def validate_seed(seed: int) -> bool:
+    def validate_caller(data, sender_id):
         pass
-
-    @staticmethod
+    
     @abstractmethod
-    def validate_sa(data, sender_id):
-        pass
-
-    @abstractmethod
-    def app_interactor(self, sign_function: types.FunctionType, commitment_list: Dict, app_data: Dict):
+    def data_validator(self, sign_function: types.FunctionType, commitment_list: Dict, app_data: Dict):
         pass

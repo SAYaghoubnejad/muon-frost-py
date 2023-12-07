@@ -2,7 +2,7 @@ import logging
 from fastecdsa import keys
 from common.TSS.tss import TSS, Point
 from common.TSS.polynomial import Polynomial
-from abstract.data_manager import DataManager
+from muon_frost_py.abstract.node.data_manager import DataManager
 from libp2p.peer.id import ID as PeerID
 from web3 import Web3
 from typing import List, Dict
@@ -22,7 +22,7 @@ class DistributedKey:
         self.malicious: Dict[List] = []
         self.__data_manager: DataManager = data_manager
         self.status = "STARTED"
-    
+        self.dkg_data = {}
     
     def complain(self ,secret_key : int, partner_id : str, partner_public : Point):
         encryption_joint_key = TSS.pub_to_code(secret_key * partner_public)
@@ -126,18 +126,18 @@ class DistributedKey:
             "public_key": TSS.pub_to_code(public_key),
             "secret_signature": secret_signature
         }
-
-        self.__data_manager.save_data(self.dkg_id, 'secret_key', secret_key)
-        self.__data_manager.save_data(self.dkg_id, "fx", fx)
-        self.__data_manager.save_data(self.dkg_id, "public_fx", public_fx)             
-        self.__data_manager.save_data(self.dkg_id, "coef0_signature", coef0_signature)
+        self.dkg_data[self.dkg_id] = {}
+        self.dkg_data[self.dkg_id]['fx'] = fx
+        self.dkg_data[self.dkg_id]['secret_key'] = fx
+        self.dkg_data[self.dkg_id]['public_fx'] = fx
+        self.dkg_data[self.dkg_id]['coef0_signature'] = coef0_signature
         return broadcast
 
     def round2(self, round1_broadcasted_data) -> List[Dict]:
-        self.__data_manager.save_data(self.dkg_id, 'round1_broadcasted_data', round1_broadcasted_data)
-        fx: Polynomial = self.__data_manager.get_data(self.dkg_id, "fx")
+        self.dkg_data[self.dkg_id]['round1_broadcasted_data'] = round1_broadcasted_data
+        fx: Polynomial = self.dkg_data[self.dkg_id]['fx']
         partners_public_keys = {}
-        secret_key = self.__data_manager.get_data(self.dkg_id, 'secret_key')
+        secret_key = self.dkg_data[self.dkg_id]['secret_key']
 
         for data in round1_broadcasted_data:
             sender_id = data["sender_id"]
@@ -202,14 +202,14 @@ class DistributedKey:
                 )
             }
             send.append(data)
-        self.__data_manager.save_data(self.dkg_id, "partners_public_keys", partners_public_keys)
+        self.dkg_data[self.dkg_id]['partners_public_keys'] = partners_public_keys
         return send
 
     def round3(self, round2_encrypted_data):
-        self.__data_manager.save_data(self.dkg_id, 'round2_encrypted_data', round2_encrypted_data)
-        secret_key = self.__data_manager.get_data(self.dkg_id, 'secret_key')
-        partners_public_keys = self.__data_manager.get_data(self.dkg_id, "partners_public_keys")
-        round1_broadcasted_data = self.__data_manager.get_data(self.dkg_id, 'round1_broadcasted_data')
+        self.dkg_data[self.dkg_id]['round2_encrypted_data'] = round2_encrypted_data
+        secret_key = self.dkg_data[self.dkg_id]['secret_key']
+        partners_public_keys = self.dkg_data[self.dkg_id]['partners_public_keys']
+        round1_broadcasted_data = self.dkg_data[self.dkg_id]['round1_broadcasted_data']
         round2_data = []
         complaints = []
         for message in round2_encrypted_data:
@@ -246,13 +246,13 @@ class DistributedKey:
         if len(complaints) > 0:
             return {'status' : 'COMPLAINT' , 'data' : complaints}
                 
-        fx: Polynomial = self.__data_manager.get_data(self.dkg_id, "fx")
+        fx: Polynomial = self.dkg_data[self.dkg_id]['fx']
         my_fragment = fx.evaluate(int.from_bytes(self.node_id.to_bytes(), 'big'))
         share_fragments = [my_fragment]
         for data in round2_data:
             share_fragments.append(data["f"])
 
-        public_fx = [self.__data_manager.get_data(self.dkg_id, "public_fx")[0]]
+        public_fx = [self.dkg_data[self.dkg_id]['public_fx'][0]]
         for data in round1_broadcasted_data:
             if data["sender_id"] in self.partners:
                 public_fx.append(TSS.code_to_pub(data["public_fx"][0]))
@@ -279,7 +279,9 @@ class DistributedKey:
         nonce_e = 0
         signature = None
         nonce = commitments_dict[self.node_id.to_base58()]
-        for pair in self.__data_manager.get_data('common_data', 'nonces'):
+        removed_nonces = []
+        nonces = self.__data_manager.get_nonces()
+        for pair in nonces:
             nonce_d = pair['nonce_d_pair'].get(nonce['public_nonce_d'])
             nonce_e = pair['nonce_e_pair'].get(nonce['public_nonce_e'])
             if nonce_d is None and nonce_e is None:
@@ -294,11 +296,11 @@ class DistributedKey:
                 commitments_dict,
                 TSS.pub_to_code(self.dkg_key_pair['dkg_public_key'])
             )
-            self.__data_manager.remove_data(
-                'common_data',
-                'nonces',
-                {'nonce_d_pair': {nonce['public_nonce_d']: nonce_d}, 
-                 'nonce_e_pair': {nonce['public_nonce_e']: nonce_e}})
+            removed_nonces.append({'nonce_d_pair': {nonce['public_nonce_d']: nonce_d}, 
+                                   'nonce_e_pair': {nonce['public_nonce_e']: nonce_e}})
+            
+        nonces = [n for n in nonces if n not in removed_nonces]
+        self.__data_manager.set_nonces(nonces)
         return signature
     
     @staticmethod
@@ -309,12 +311,12 @@ class DistributedKey:
             nonce_e = TSS.generate_random_private()
             public_nonce_d = TSS.pub_to_code(keys.get_public_key(nonce_d , TSS.ecurve))
             public_nonce_e = TSS.pub_to_code(keys.get_public_key(nonce_e , TSS.ecurve))
-
-            data_manager.add_data('common_data', 'nonces', {
+            nonces = data_manager.get_nonces()
+            nonces.append({
                 'nonce_d_pair': {public_nonce_d: nonce_d},
                 'nonce_e_pair': {public_nonce_e: nonce_e}
             })
-
+            data_manager.set_nonces(nonces)
             nonce_publics.append({
                 'id': int.from_bytes(peer_id.to_bytes(), 'big'),
                 'public_nonce_d': public_nonce_d,

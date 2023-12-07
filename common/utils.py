@@ -81,11 +81,10 @@ class Utils:
 
 
 class RequestObject:
-    def __init__(self, request_id: str, call_method: str, sa_authorization: str, parameters: Dict,
+    def __init__(self, request_id: str, call_method: str, parameters: Dict,
                  app_data: Dict = None) -> None:
         self.request_id: str = request_id
         self.call_method: str = call_method
-        self.sa_authorization: str = sa_authorization
         self.parameters: Dict = parameters
         self.app_data = app_data
 
@@ -93,7 +92,6 @@ class RequestObject:
         result = {
             "request_id": f"{self.request_id}_{self.call_method}",
             "method": self.call_method,
-            'sa_authorization': self.sa_authorization,
             "parameters": self.parameters
         }
         if self.app_data:
