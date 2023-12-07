@@ -82,11 +82,11 @@ class Utils:
 
 class RequestObject:
     def __init__(self, request_id: str, call_method: str, parameters: Dict,
-                 app_data: Dict = None) -> None:
+                 input_data: Dict = None) -> None:
         self.request_id: str = request_id
         self.call_method: str = call_method
         self.parameters: Dict = parameters
-        self.app_data = app_data
+        self.input_data = input_data
 
     def get(self):
         result = {
@@ -94,6 +94,6 @@ class RequestObject:
             "method": self.call_method,
             "parameters": self.parameters
         }
-        if self.app_data:
-            result['app_data'] = self.app_data
+        if self.input_data:
+            result['input_data'] = self.input_data
         return result

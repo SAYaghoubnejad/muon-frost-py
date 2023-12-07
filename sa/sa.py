@@ -42,7 +42,6 @@ class SA(Libp2pBase):
             'number_of_nonces': number_of_nonces,
         }
         request_object = RequestObject(req_id, call_method, parameters)
-
         nonces = {}
         destination_address = self.node_info.lookup_node(peer_id)
         await self.send(destination_address, peer_id,
@@ -52,7 +51,7 @@ class SA(Libp2pBase):
         return nonces
     
     async def request_signature(self, dkg_key: Dict, commitments_dict: Dict,
-                                app_data: Dict, sign_party: List) -> Dict:
+                                input_data: Dict, sign_party: List) -> Dict:
         call_method = "sign"
         dkg_id = dkg_key['dkg_id']
                 
@@ -60,7 +59,7 @@ class SA(Libp2pBase):
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
         }
-        request_object = RequestObject(dkg_id, call_method, parameters, app_data)
+        request_object = RequestObject(dkg_id, call_method, parameters, input_data)
 
         signatures = {}
         async with trio.open_nursery() as nursery:

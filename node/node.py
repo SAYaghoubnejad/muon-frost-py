@@ -226,11 +226,11 @@ class Node(Libp2pBase):
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
         commitments_list = parameters['commitments_list']
-        app_data = data['app_data']
+        input_data = data['input_data']
 
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
-        data = self.data_validator(self.distributed_keys[dkg_id].frost_sign, app_data, commitments_list)
+        data = self.data_validator(self.distributed_keys[dkg_id].frost_sign, input_data, commitments_list)
 
         response = json.dumps(data).encode("utf-8")
         try:
