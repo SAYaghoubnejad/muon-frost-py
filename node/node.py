@@ -1,13 +1,13 @@
-from common.libp2p_base import Libp2pBase
-from common.libp2p_config import PROTOCOLS_ID
+from muon_frost_py.common.libp2p_base import Libp2pBase
+from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
 from muon_frost_py.abstract.node.node_info import NodeInfo
 from muon_frost_py.abstract.node.data_manager import DataManager
-from common.utils import Utils
-from common.TSS.tss import TSS
+from muon_frost_py.common.utils import Utils
+from muon_frost_py.common.TSS.tss import TSS
 
-from decorators import auth_decorator
-from unpacked_stream import UnpackedStream
-from distributed_key import DistributedKey
+from .decorators import auth_decorator
+from .unpacked_stream import UnpackedStream
+from .distributed_key import DistributedKey
 from libp2p.network.stream.net_stream_interface import INetStream
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from typing import Dict, List
@@ -18,12 +18,12 @@ import types
 
 class Node(Libp2pBase):
     def __init__(self, data_manager: DataManager, address: Dict[str, str],
-                  secret: str, node_info: NodeInfo, sa_validator: types.FunctionType,
+                  secret: str, node_info: NodeInfo, caller_validator: types.FunctionType,
                   data_validator: types.FunctionType) -> None:
         super().__init__(address, secret)
         self.node_info: NodeInfo = node_info
         self.distributed_keys: Dict[str, DistributedKey] = {}
-        self.sa_validator = sa_validator
+        self.caller_validator = caller_validator
         self.data_validator = data_validator
         # Define handlers for various protocol methods
         handlers = {

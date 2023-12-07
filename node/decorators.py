@@ -1,5 +1,5 @@
 from libp2p.network.stream.net_stream_interface import INetStream
-from unpacked_stream import UnpackedStream
+from .unpacked_stream import UnpackedStream
 
 import logging
 import json
@@ -12,7 +12,8 @@ def auth_decorator(handler):
         try:
             data = json.loads(raw_data)
             # Perform validation and authorization checks
-            if self.sa_validator(data, unpacked_stream.sender_id):
+            if self.caller_validator(unpacked_stream.sender_id, 
+                                     unpacked_stream.stream.get_protocol()):
                 return await handler(self, unpacked_stream)
             else:
                 logging.error('Node Decorator => Exception occurred. Unauthorized gatewary.')

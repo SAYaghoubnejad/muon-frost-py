@@ -3,7 +3,7 @@ from typing import Dict, List
 
 class DataManager(ABC):
     @abstractmethod
-    def get_nonces(self) -> None:
+    def get_nonces(self):
         pass
     
     @abstractmethod
@@ -12,9 +12,9 @@ class DataManager(ABC):
         pass
     
     @abstractmethod
-    def set_dkg_key(self, table_name: str, key, value) -> None:
+    def set_dkg_key(self,  key, value) -> None:
         pass
     
     @abstractmethod
-    def get_dkg_key(self, table_name: str, key, value) -> None:
+    def get_dkg_key(self, key):
         pass
