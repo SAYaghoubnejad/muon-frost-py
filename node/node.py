@@ -95,7 +95,7 @@ class Node(Libp2pBase):
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["round1"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('Node => Exception occurred :', exc_info=True)
+            logging.error(f'Node => Exception occurred: {type(e).__name__}: {e}')
         
         await unpacked_stream.stream.close()
 
@@ -138,7 +138,7 @@ class Node(Libp2pBase):
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["round2"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('Node => Exception occurred: ', exc_info=True)
+            logging.error(f'Node => Exception occurred: {type(e).__name__}: {e}')
         
         await unpacked_stream.stream.close()
 
@@ -178,7 +178,7 @@ class Node(Libp2pBase):
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["round3"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('Node => Exception occurred :', exc_info=True)
+            logging.error(f'Node => Exception occurred: {type(e).__name__}: {e}')
         
         await unpacked_stream.stream.close()
 
@@ -208,7 +208,7 @@ class Node(Libp2pBase):
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('Node=> Exception occurred :', exc_info=True)
+            logging.error(f'Node=> Exception occurred: {type(e).__name__}: {e}')
         
         await unpacked_stream.stream.close()
 
@@ -237,6 +237,6 @@ class Node(Libp2pBase):
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Sent message: {response.decode()}')
         except Exception as e:
-            logging.error('Node=> Exception occurred :', exc_info=True)
+            logging.error(f'Node=> Exception occurred: {type(e).__name__}: {e}')
         
         await unpacked_stream.stream.close()
