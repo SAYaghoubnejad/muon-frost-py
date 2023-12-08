@@ -51,15 +51,22 @@ class SA(Libp2pBase):
         return nonces
     
     async def request_signature(self, dkg_key: Dict, commitments_dict: Dict,
-                                input_data: Dict, sign_party: List) -> Dict:
+                                sign_data: Dict, sign_party: List) -> Dict:
         call_method = "sign"
         dkg_id = dkg_key['dkg_id']
-                
+        
+        if not set(sign_party).issubset(set(dkg_key['party'])):
+            response = {
+                'result': 'FAILED',
+                'signatures': None
+            }
+            return response
+        
         parameters = {
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
         }
-        request_object = RequestObject(dkg_id, call_method, parameters, input_data)
+        request_object = RequestObject(dkg_id, call_method, parameters, sign_data)
 
         signatures = {}
         async with trio.open_nursery() as nursery:
@@ -99,6 +106,7 @@ class SA(Libp2pBase):
         aggregated_sign = TSS.frost_aggregate_signatures(encoded_message, signs, 
                                                         aggregated_public_nonce, 
                                                         dkg_key['public_key'])
+        aggregated_sign['message'] = message
         if TSS.frost_verify_group_signature(aggregated_sign):
             aggregated_sign['result'] = 'SUCCESSFUL'
             logging.info(f'Signature request response: {aggregated_sign["result"]}')
