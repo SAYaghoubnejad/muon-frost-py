@@ -5,9 +5,10 @@ from common.TSS.tss import TSS
 from common.utils import Utils
 
 from common.utils import RequestObject
-from typing import List, Dict, Type
+from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
+from libp2p.host.host_interface import IHost
 
 import types
 import pprint
@@ -23,9 +24,10 @@ class Dkg(Libp2pBase):
     """
 
     def __init__(self, address: Dict[str, str], secret: str, node_info: NodeInfo,
-                  max_workers: int = 0, default_timeout: int = 200) -> None:
+                  max_workers: int = 0, default_timeout: int = 200, host:  IHost = None) -> None:
 
-        super().__init__(address, secret)
+        super().__init__(address, secret, host)
+        
         self.node_info: NodeInfo = node_info
         if max_workers != 0:
             self.semaphore = trio.Semaphore(max_workers)
