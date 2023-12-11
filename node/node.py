@@ -8,8 +8,9 @@ from muon_frost_py.common.TSS.tss import TSS
 from .decorators import auth_decorator
 from .unpacked_stream import UnpackedStream
 from .distributed_key import DistributedKey
-from libp2p.network.stream.net_stream_interface import INetStream
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
+from libp2p.peer.id import ID as PeerID
+
 from typing import Dict, List
 
 import json
@@ -37,18 +38,33 @@ class Node(Libp2pBase):
         self.data_manager: DataManager = data_manager
         self.dkg_data = {}
         
-
+    def update_distributed_key(self, dkg_id: str) -> None:
+        result = self.distributed_keys.get(dkg_id)
+        if result is not None:
+            return
+        data = self.data_manager.get_dkg_key(dkg_id)
+        data = json.loads(data)
+        if data is None:
+            return None
+        party = data['party'].remove(self.peer_id)
+        self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, data['threshold'], self.peer_id, 
+                                                       party)
+        dkg_key_pair = {
+            'share' : data['dkg_key'][int.from_bytes(PeerID.from_base58(id).to_bytes(), 'big')],
+            'dkg_public_key': data['dkg_key']['public_key']
+        }
+        self.distributed_keys[dkg_id].dkg_key_pair = dkg_key_pair
+        
     def __add_new_key(self, dkg_id: str, threshold, party: List[str], app_name: str) -> None:
         assert self.peer_id in party, f'This node is not amoung specified party for app {dkg_id}'
         assert threshold <= len(party), f'Threshold must be <= n for app {dkg_id}'
-        # TODO: check if this node is included in party
         
         partners = party
         partners.remove(self.peer_id)
         self.dkg_data[dkg_id] = {'app_name': app_name}
 
 
-        self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, threshold, len(party), self.peer_id, partners) 
+        self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, threshold, self.peer_id, partners) 
     
     def __remove_key(self, dkg_id: str) -> None:
         if self.distributed_keys.get(dkg_id) is not None:
@@ -82,6 +98,7 @@ class Node(Libp2pBase):
             app_name
             )
         
+        self.update_distributed_key(dkg_id)
         round1_broadcast_data = self.distributed_keys[dkg_id].round1()
         broadcast_bytes = json.dumps(round1_broadcast_data).encode('utf-8')
         # Prepare the response data
@@ -127,6 +144,7 @@ class Node(Libp2pBase):
             broadcasted_data.append(data['broadcast'])
             logging.debug(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
 
+        self.update_distributed_key(dkg_id)
         round2_broadcast_data = self.distributed_keys[dkg_id].round2(broadcasted_data)
 
         data = {
@@ -159,6 +177,7 @@ class Node(Libp2pBase):
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["round3"]} Got message: {message}')
         
+        self.update_distributed_key(dkg_id)
         round3_data = self.distributed_keys[dkg_id].round3(send_data)
         
         if round3_data['status'] == 'COMPLAINT':
@@ -230,9 +249,17 @@ class Node(Libp2pBase):
 
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
-        data = self.data_validator(self.distributed_keys[dkg_id].frost_sign, input_data, commitments_list)
-
-        response = json.dumps(data).encode("utf-8")
+        result = {}
+        try:
+            result: Dict = self.data_validator(input_data)
+            self.update_distributed_key(dkg_id)
+            result['signature'] =  self.distributed_keys[dkg_id].frost_sign(commitments_list, result['hash'])
+        except Exception as e:
+            logging.error(f'Node=> Exception occurred: {type(e).__name__}: {e}')
+            result = {
+                'result': 'FAILED'
+            } 
+        response = json.dumps(result).encode("utf-8")
         try:
             await unpacked_stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Sent message: {response.decode()}')

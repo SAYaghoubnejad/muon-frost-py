@@ -6,16 +6,13 @@ from muon_frost_py.common.utils import Utils
 
 from muon_frost_py.common.utils import RequestObject
 from muon_frost_py.sa.utils import Wrappers
-from typing import List, Dict, Type
-from libp2p.crypto.secp256k1 import Secp256k1PublicKey
-from libp2p.peer.id import ID as PeerID
+from typing import List, Dict
 
-import types
 import pprint
 import trio
 import logging
 import json
-import timeit
+
 
 class SA(Libp2pBase):
     """
@@ -51,7 +48,7 @@ class SA(Libp2pBase):
         return nonces
     
     async def request_signature(self, dkg_key: Dict, commitments_dict: Dict,
-                                sign_data: Dict, sign_party: List) -> Dict:
+                                input_data: Dict, sign_party: List) -> Dict:
         call_method = "sign"
         dkg_id = dkg_key['dkg_id']
         
@@ -66,7 +63,7 @@ class SA(Libp2pBase):
             "dkg_id": dkg_id,
             'commitments_list': commitments_dict,
         }
-        request_object = RequestObject(dkg_id, call_method, parameters, sign_data)
+        request_object = RequestObject(dkg_id, call_method, parameters, input_data)
 
         signatures = {}
         async with trio.open_nursery() as nursery:

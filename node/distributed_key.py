@@ -12,9 +12,8 @@ import json
 
 
 class DistributedKey:
-    def __init__(self, data_manager: DataManager, dkg_id: str, threshold: int, n: int, node_id: PeerID, partners: List[str], coefficient0: str = None) -> None:
+    def __init__(self, data_manager: DataManager, dkg_id: str, threshold: int, node_id: PeerID, partners: List[str], coefficient0: str = None) -> None:
         self.threshold: int = threshold
-        self.n: int = n
         self.dkg_id: str = dkg_id
         self.node_id: PeerID = node_id
         self.partners: List[str] = partners
@@ -23,7 +22,7 @@ class DistributedKey:
         self.__data_manager: DataManager = data_manager
         self.status = "STARTED"
         self.dkg_data = {}
-    
+        self.dkg_key_pair = {}
     def complain(self ,secret_key : int, partner_id : str, partner_public : Point):
         encryption_joint_key = TSS.pub_to_code(secret_key * partner_public)
         public_key = keys.get_public_key(secret_key , TSS.ecurve)
