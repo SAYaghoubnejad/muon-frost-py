@@ -3,7 +3,7 @@ from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
 from muon_frost_py.abstract.node.node_info import NodeInfo
 from muon_frost_py.abstract.node.data_manager import DataManager
 from muon_frost_py.common.utils import Utils
-from muon_frost_py.common.TSS.tss import TSS
+from muon_frost_py.common.pyfrost.tss import TSS
 
 from .decorators import auth_decorator
 from .unpacked_stream import UnpackedStream
@@ -185,7 +185,7 @@ class Node(Libp2pBase):
         
         round3_data['validation'] = None
         if round3_data['status'] == 'SUCCESSFUL':
-            round3_data['validation']: self._key_pair.private_key.sign(round3_data['data']).hex()
+            round3_data['validation'] = self._key_pair.private_key.sign(round3_data['data']).hex()
 
         data = {
             "data": round3_data['data'],
@@ -251,9 +251,10 @@ class Node(Libp2pBase):
         logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
         result = {}
         try:
-            result: Dict = self.data_validator(input_data)
+            result['data'] = self.data_validator(input_data)
             self.update_distributed_key(dkg_id)
-            result['signature'] =  self.distributed_keys[dkg_id].frost_sign(commitments_list, result['hash'])
+            result['signature_data'] =  self.distributed_keys[dkg_id].frost_sign(commitments_list, result['hash'])
+            result['status'] = 'SUCCESSFUL'
         except Exception as e:
             logging.error(f'Node=> Exception occurred: {type(e).__name__}: {e}')
             result = {

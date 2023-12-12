@@ -1,7 +1,7 @@
 from muon_frost_py.common.libp2p_base import Libp2pBase
 from muon_frost_py.abstract.node.node_info import NodeInfo
 from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
-from muon_frost_py.common.TSS.tss import TSS
+from muon_frost_py.common.pyfrost.tss import TSS
 from muon_frost_py.common.utils import Utils
 
 from muon_frost_py.common.utils import RequestObject
@@ -34,19 +34,21 @@ class SA(Libp2pBase):
             self.semaphore = None
         self.default_timeout = default_timeout
     
-    async def request_nonce(self, peer_id: str, number_of_nonces):
-        req_id = Utils.generate_random_uuid()
-        call_method = "generate_nonces"
-        parameters = {
-            'number_of_nonces': number_of_nonces,
-        }
-        request_object = RequestObject(req_id, call_method, parameters)
+    async def request_nonces(self, party: List, number_of_nonces: int = 10):
         nonces = {}
-        destination_address = self.node_info.lookup_node(peer_id)
-        await self.send(destination_address, peer_id,
-                            PROTOCOLS_ID[call_method], request_object.get(), nonces, self.default_timeout, self.semaphore)
+        for peer_id in party:
+            req_id = Utils.generate_random_uuid()
+            call_method = "generate_nonces"
+            parameters = {
+                'number_of_nonces': number_of_nonces,
+            }
+            request_object = RequestObject(req_id, call_method, parameters)
+            
+            destination_address = self.node_info.lookup_node(peer_id)
+            await self.send(destination_address, peer_id,
+                                PROTOCOLS_ID[call_method], request_object.get(), nonces, self.default_timeout, self.semaphore)
 
-        logging.debug(f'Nonces dictionary response: \n{pprint.pformat(nonces)}')
+            logging.debug(f'Nonces dictionary response: \n{pprint.pformat(nonces)}')
         return nonces
     
     async def request_signature(self, dkg_key: Dict, commitments_dict: Dict,
@@ -77,7 +79,7 @@ class SA(Libp2pBase):
         logging.debug(f'Signatures dictionary response: \n{pprint.pformat(signatures)}')
         
         message = [i['data'] for i in signatures.values()][0]
-        encoded_message = json.dumps(message)
+        str_message = json.dumps(message)
         signs = [i['signature_data'] for i in signatures.values()]
         aggregated_public_nonces = [i['signature_data']['aggregated_public_nonce'] for i in signatures.values()]
         response = {
@@ -85,7 +87,7 @@ class SA(Libp2pBase):
             'signatures': None
         }
         if not Utils.check_list_equality(aggregated_public_nonces):
-            aggregated_public_nonce = TSS.frost_aggregate_nonce(encoded_message, commitments_dict, dkg_key['public_key'])
+            aggregated_public_nonce = TSS.frost_aggregate_nonce(str_message, commitments_dict, dkg_key['public_key'])
             aggregated_public_nonce = TSS.pub_to_code(aggregated_public_nonce)
             for peer_id, data in signatures.items():
                 if data['signature_data']['aggregated_public_nonce'] != aggregated_public_nonce:
@@ -102,10 +104,10 @@ class SA(Libp2pBase):
             logging.info(f'Signature response: {response}')
             return response
         aggregated_public_nonce = TSS.code_to_pub(aggregated_public_nonces[0])
-        aggregated_sign = TSS.frost_aggregate_signatures(encoded_message, signs, 
+        aggregated_sign = TSS.frost_aggregate_signatures(str_message, signs, 
                                                         aggregated_public_nonce, 
                                                         dkg_key['public_key'])
-        aggregated_sign['message'] = message
+        aggregated_sign['signatures'] = signatures
         if TSS.frost_verify_group_signature(aggregated_sign):
             aggregated_sign['result'] = 'SUCCESSFUL'
             logging.info(f'Signature request response: {aggregated_sign["result"]}')

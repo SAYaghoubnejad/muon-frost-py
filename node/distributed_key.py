@@ -1,7 +1,7 @@
 import logging
 from fastecdsa import keys
-from muon_frost_py.common.TSS.tss import TSS, Point
-from muon_frost_py.common.TSS.polynomial import Polynomial
+from muon_frost_py.common.pyfrost.tss import TSS, Point
+from muon_frost_py.common.pyfrost.polynomial import Polynomial
 from muon_frost_py.abstract.node.data_manager import DataManager
 from libp2p.peer.id import ID as PeerID
 from web3 import Web3

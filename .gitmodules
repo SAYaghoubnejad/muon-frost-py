@@ -1,3 +1,3 @@
-[submodule "common/TSS"]
-	path = common/TSS
-	url = git@github.com:SAYaghoubnejad/TSS_lib.git
+[submodule "common/pyfrost"]
+	path = common/pyfrost
+	url = git@github.com:SAYaghoubnejad/pyfrost.git

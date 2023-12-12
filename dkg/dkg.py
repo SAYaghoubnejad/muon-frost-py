@@ -1,10 +1,10 @@
-from common.libp2p_base import Libp2pBase
+from muon_frost_py.common.libp2p_base import Libp2pBase
 from muon_frost_py.abstract.node.node_info import NodeInfo
-from common.libp2p_config import PROTOCOLS_ID
-from common.TSS.tss import TSS
-from common.utils import Utils
+from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
+from muon_frost_py.common.pyfrost.tss import TSS
+from muon_frost_py.common.utils import Utils
 
-from common.utils import RequestObject
+from muon_frost_py.common.utils import RequestObject
 from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
@@ -50,14 +50,15 @@ class Dkg(Libp2pBase):
                     round2_data.append(entry)
         return round2_data
 
-    async def request_dkg(self, threshold: int, n: int, party: List[str], app_name: str) -> Dict:
-
+    async def request_dkg(self, threshold: int, party: List[str], app_name: str) -> Dict:
+        logging.info(f'Requesting DKG with threshold: {threshold}, party: {party}, app name: {app_name}.')
         dkg_id = Utils.generate_random_uuid()
 
         if len(party) < threshold:
             response = {
                 'result': 'FAILED',
                 "dkg_id": None,
+                'response': {}
             }
             logging.error(f'DKG id {dkg_id} has FAILED due to insufficient number of available nodes')
             return response
@@ -88,9 +89,10 @@ class Dkg(Libp2pBase):
             response = {
                 'result': 'FAILED',
                 "dkg_id": dkg_id,
-                'round1_response':round1_response
+                'call_method': call_method,
+                'response': round1_response
             }
-            logging.info(f'DKG request response: {response}')
+            logging.info(f'DKG request result: {response}')
             return response
         
         # TODO: error handling (if verification failed)
@@ -126,10 +128,10 @@ class Dkg(Libp2pBase):
             response = {
                 'result': 'FAILED',
                 "dkg_id": dkg_id,
-                'round1_response': round1_response,
-                'round2_response': round2_response
+                'call_method': call_method,
+                'response': round2_response,
             }
-            logging.info(f'DKG request response: {response}')
+            logging.info(f'DKG request result: {response}')
             return response
 
 
@@ -158,11 +160,12 @@ class Dkg(Libp2pBase):
             response = {
                 'result': 'FAILED',
                 "dkg_id": dkg_id,
+                'call_method': call_method,
                 'round1_response': round1_response,
                 'round2_response': round2_response,
-                'round3_response': round3_response
+                'response': round3_response
             }
-            logging.info(f'DKG request response: {response}')
+            logging.info(f'DKG request result: {response}')
             return response
         
         for id1, data1 in round3_response.items():
