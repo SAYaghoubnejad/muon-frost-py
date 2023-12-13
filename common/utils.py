@@ -77,6 +77,7 @@ class Utils:
             result = requests.get(url).json()
             return result
         except Exception as e:
+            logging.error(f'get_request => Exception occurred: {type(e).__name__}: {e}')
             return None
 
 

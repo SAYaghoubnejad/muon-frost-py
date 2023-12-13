@@ -2,7 +2,7 @@ import logging
 from fastecdsa import keys
 from muon_frost_py.common.pyfrost.tss import TSS, Point
 from muon_frost_py.common.pyfrost.polynomial import Polynomial
-from muon_frost_py.abstract.node.data_manager import DataManager
+from muon_frost_py.abstract.data_manager import DataManager
 from libp2p.peer.id import ID as PeerID
 from web3 import Web3
 from typing import List, Dict
@@ -127,8 +127,8 @@ class DistributedKey:
         }
         self.dkg_data[self.dkg_id] = {}
         self.dkg_data[self.dkg_id]['fx'] = fx
-        self.dkg_data[self.dkg_id]['secret_key'] = fx
-        self.dkg_data[self.dkg_id]['public_fx'] = fx
+        self.dkg_data[self.dkg_id]['secret_key'] = secret_key
+        self.dkg_data[self.dkg_id]['public_fx'] = public_fx
         self.dkg_data[self.dkg_id]['coef0_signature'] = coef0_signature
         return broadcast
 

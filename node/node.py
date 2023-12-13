@@ -1,7 +1,7 @@
 from muon_frost_py.common.libp2p_base import Libp2pBase
 from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
-from muon_frost_py.abstract.node.node_info import NodeInfo
-from muon_frost_py.abstract.node.data_manager import DataManager
+from muon_frost_py.abstract.node_info import NodeInfo
+from muon_frost_py.abstract.data_manager import DataManager
 from muon_frost_py.common.utils import Utils
 from muon_frost_py.common.pyfrost.tss import TSS
 
@@ -42,20 +42,9 @@ class Node(Libp2pBase):
         result = self.distributed_keys.get(dkg_id)
         if result is not None:
             return
-        data = self.data_manager.get_dkg_key(dkg_id)
-        data = json.loads(data)
-        if data is None:
-            return None
-        party = data['party'].remove(self.peer_id)
-        self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, data['threshold'], self.peer_id, 
-                                                       party)
-        dkg_key_pair = {
-            'share' : data['dkg_key'][int.from_bytes(PeerID.from_base58(id).to_bytes(), 'big')],
-            'dkg_public_key': data['dkg_key']['public_key']
-        }
-        self.distributed_keys[dkg_id].dkg_key_pair = dkg_key_pair
+        # TODO: Implement for retrieve distributed key object
         
-    def __add_new_key(self, dkg_id: str, threshold, party: List[str], app_name: str) -> None:
+    def add_new_key(self, dkg_id: str, threshold, party: List[str], app_name: str) -> None:
         assert self.peer_id in party, f'This node is not amoung specified party for app {dkg_id}'
         assert threshold <= len(party), f'Threshold must be <= n for app {dkg_id}'
         
@@ -66,7 +55,7 @@ class Node(Libp2pBase):
 
         self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, threshold, self.peer_id, partners) 
     
-    def __remove_key(self, dkg_id: str) -> None:
+    def remove_key(self, dkg_id: str) -> None:
         if self.distributed_keys.get(dkg_id) is not None:
             del self.distributed_keys[dkg_id]
         
@@ -91,7 +80,7 @@ class Node(Libp2pBase):
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["round1"]} Got message: {message}')
 
-        self.__add_new_key(
+        self.add_new_key(
             dkg_id, 
             parameters['threshold'], 
             parameters['party'],
@@ -181,11 +170,12 @@ class Node(Libp2pBase):
         round3_data = self.distributed_keys[dkg_id].round3(send_data)
         
         if round3_data['status'] == 'COMPLAINT':
-            self.__remove_key(dkg_id)
+            self.remove_key(dkg_id)
         
         round3_data['validation'] = None
         if round3_data['status'] == 'SUCCESSFUL':
-            round3_data['validation'] = self._key_pair.private_key.sign(round3_data['data']).hex()
+            sign_data = json.dumps(round3_data['data']).encode('utf-8')
+            round3_data['validation'] = self._key_pair.private_key.sign(sign_data).hex()
 
         data = {
             "data": round3_data['data'],
@@ -258,8 +248,8 @@ class Node(Libp2pBase):
         except Exception as e:
             logging.error(f'Node=> Exception occurred: {type(e).__name__}: {e}')
             result = {
-                'result': 'FAILED'
-            } 
+                'status': 'FAILED'
+            }  
         response = json.dumps(result).encode("utf-8")
         try:
             await unpacked_stream.stream.write(response)

@@ -1,5 +1,5 @@
 from muon_frost_py.common.libp2p_base import Libp2pBase
-from muon_frost_py.abstract.node.node_info import NodeInfo
+from muon_frost_py.abstract.node_info import NodeInfo
 from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
 from muon_frost_py.common.pyfrost.tss import TSS
 from muon_frost_py.common.utils import Utils

@@ -3,7 +3,7 @@ from typing import Dict, List
 
 class DataManager(ABC):
     @abstractmethod
-    def get_nonces(self):
+    def get_nonces(self) -> List:
         pass
     
     @abstractmethod
