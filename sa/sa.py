@@ -5,7 +5,7 @@ from muon_frost_py.common.pyfrost.tss import TSS
 from muon_frost_py.common.utils import Utils
 
 from muon_frost_py.common.utils import RequestObject
-from muon_frost_py.sa.utils import Wrappers
+from .utils import Wrappers
 from typing import List, Dict
 
 from libp2p.host.host_interface import IHost
