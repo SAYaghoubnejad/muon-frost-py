@@ -2,14 +2,10 @@ from muon_frost_py.common.libp2p_base import Libp2pBase
 from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
 from muon_frost_py.abstract.node_info import NodeInfo
 from muon_frost_py.abstract.data_manager import DataManager
-from muon_frost_py.common.utils import Utils
-from muon_frost_py.common.pyfrost.tss import TSS
-
-from .decorators import auth_decorator
-from .unpacked_stream import UnpackedStream
-from .distributed_key import DistributedKey
-from libp2p.crypto.secp256k1 import Secp256k1PublicKey
+from libp2p.network.stream.net_stream_interface import INetStream
+from common.pyfrost.frost import FROST
 from libp2p.peer.id import ID as PeerID
+from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 
 from typing import Dict, List
 
@@ -17,13 +13,27 @@ import json
 import logging
 import types
 
+
+def auth_decorator(handler):
+    async def wrapper(self, stream: INetStream):
+        try:
+            if self.caller_validator(stream.muxed_conn.peer_id.to_base58(), stream.get_protocol()):
+                return await handler(self, stream)
+            else:
+                logging.error('Node Decorator => Exception occurred. Unauthorized SA.')
+                raise Exception("Unauthorized SA")
+        except json.JSONDecodeError:
+            raise Exception("Invalid JSON data")
+    return wrapper
+
+
 class Node(Libp2pBase):
     def __init__(self, data_manager: DataManager, address: Dict[str, str],
                   secret: str, node_info: NodeInfo, caller_validator: types.FunctionType,
                   data_validator: types.FunctionType) -> None:
         super().__init__(address, secret)
         self.node_info: NodeInfo = node_info
-        self.distributed_keys: Dict[str, DistributedKey] = {}
+        self.frost_nodes: Dict[str, FROST] = {}
         self.caller_validator = caller_validator
         self.data_validator = data_validator
         # Define handlers for various protocol methods
@@ -39,7 +49,7 @@ class Node(Libp2pBase):
         self.dkg_data = {}
         
     def update_distributed_key(self, dkg_id: str) -> None:
-        result = self.distributed_keys.get(dkg_id)
+        result = self.frost_nodes.get(dkg_id)
         if result is not None:
             return
         # TODO: Implement for retrieve distributed key object
@@ -52,27 +62,27 @@ class Node(Libp2pBase):
         partners.remove(self.peer_id)
         self.dkg_data[dkg_id] = {'app_name': app_name}
 
-
-        self.distributed_keys[dkg_id] = DistributedKey(self.data_manager, dkg_id, threshold, self.peer_id, partners) 
+        peer_id_as_int = int.from_bytes(PeerID.from_base58(id).to_bytes(), 'big')
+        self.frost_nodes[dkg_id] = FROST(dkg_id, threshold, len(party), str(peer_id_as_int), partners)
     
     def remove_key(self, dkg_id: str) -> None:
-        if self.distributed_keys.get(dkg_id) is not None:
-            del self.distributed_keys[dkg_id]
+        if self.frost_nodes.get(dkg_id) is not None:
+            del self.frost_nodes[dkg_id]
         
 
 
         
     
     @auth_decorator
-    async def round1_handler(self, unpacked_stream: UnpackedStream) -> None:
+    async def round1_handler(self, stream: INetStream) -> None:
         # Read and decode the message from the network stream
-        message = await unpacked_stream.read()
+        message = await stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
         
         # Extract request_id, method, and parameters from the message
         request_id = data["request_id"]
-        sender_id = unpacked_stream.sender_id
+        sender_id = stream.muxed_conn.peer_id
         method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
@@ -88,7 +98,8 @@ class Node(Libp2pBase):
             )
         
         self.update_distributed_key(dkg_id)
-        round1_broadcast_data = self.distributed_keys[dkg_id].round1()
+        round1_broadcast_data, save_data = self.frost_nodes[dkg_id].dkg_round1()
+        self.dkg_data[dkg_id] = save_data
         broadcast_bytes = json.dumps(round1_broadcast_data).encode('utf-8')
         # Prepare the response data
         data = {
@@ -98,23 +109,23 @@ class Node(Libp2pBase):
         }
         response = json.dumps(data).encode("utf-8")
         try:
-            await unpacked_stream.stream.write(response)
+            await stream.stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["round1"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error(f'Node => Exception occurred: {type(e).__name__}: {e}')
         
-        await unpacked_stream.stream.close()
+        await stream.stream.close()
 
     @auth_decorator
-    async def round2_handler(self, unpacked_stream: UnpackedStream) -> None:
+    async def round2_handler(self, stream: INetStream) -> None:
         # Read and decode the message from the network stream
-        message = await unpacked_stream.read()
+        message = await stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
 
         # Extract request_id, method, and parameters from the message
         request_id = data["request_id"]
-        sender_id = unpacked_stream.sender_id
+        sender_id = stream.muxed_conn.peer_id
         method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
@@ -134,31 +145,32 @@ class Node(Libp2pBase):
             logging.debug(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
 
         self.update_distributed_key(dkg_id)
-        round2_broadcast_data = self.distributed_keys[dkg_id].round2(broadcasted_data)
-
+        round2_broadcast_data, save_data = self.frost_nodes[dkg_id].dkg_round2(broadcasted_data, self.dkg_data[dkg_id])
+        self.dkg_data[dkg_id].update(save_data)
+        self.dkg_data[dkg_id]['round1_broadcasted_data'] = broadcasted_data
         data = {
             "broadcast": round2_broadcast_data,
             "status": "SUCCESSFUL",
         }
         response = json.dumps(data).encode("utf-8")
         try:
-            await unpacked_stream.stream.write(response)
+            await stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["round2"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error(f'Node => Exception occurred: {type(e).__name__}: {e}')
         
-        await unpacked_stream.stream.close()
+        await stream.close()
 
     @auth_decorator
-    async def round3_handler(self, unpacked_stream: UnpackedStream) -> None:
+    async def round3_handler(self, stream: INetStream) -> None:
         # Read and decode the message from the network stream
-        message = await unpacked_stream.read()
+        message = await stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
 
         # Extract request_id, method, and parameters from the message
         request_id = data["request_id"]
-        sender_id = unpacked_stream.sender_id
+        sender_id = stream.muxed_conn.peer_id
         method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
@@ -167,7 +179,8 @@ class Node(Libp2pBase):
         logging.debug(f'{sender_id}{PROTOCOLS_ID["round3"]} Got message: {message}')
         
         self.update_distributed_key(dkg_id)
-        round3_data = self.distributed_keys[dkg_id].round3(send_data)
+        round3_data = self.frost_nodes[dkg_id].dkg_round3(self.dkg_data[dkg_id]['round1_broadcasted_data'],
+                                                          send_data, self.dkg_data[dkg_id])
         
         if round3_data['status'] == 'COMPLAINT':
             self.remove_key(dkg_id)
@@ -184,53 +197,54 @@ class Node(Libp2pBase):
         }
         response = json.dumps(data).encode("utf-8")
         try:
-            await unpacked_stream.stream.write(response)
+            await stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["round3"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error(f'Node => Exception occurred: {type(e).__name__}: {e}')
         
-        await unpacked_stream.stream.close()
+        await stream.close()
 
     @auth_decorator
-    async def generate_nonces_handler(self, unpacked_stream: UnpackedStream) -> None:
+    async def generate_nonces_handler(self, stream: INetStream) -> None:
         # Read and decode the message from the network stream
-        message = await unpacked_stream.read()
+        message = await stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
 
         # Extract request_id, method, and parameters from the message
         request_id = data["request_id"]
-        sender_id = unpacked_stream.sender_id
+        sender_id = stream.muxed_conn.peer_id
         method = data["method"]
         parameters = data["parameters"]
         number_of_nonces = parameters['number_of_nonces']
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Got message: {message}')
-        nonces = DistributedKey.generate_nonces(self.data_manager, self.peer_id, number_of_nonces)
-
+        peer_id_as_int = int.from_bytes(PeerID.from_base58(sender_id).to_bytes(), 'big')
+        nonces, save_data = FROST.nonce_preprocess(peer_id_as_int, number_of_nonces)
+        self.data_manager.set_nonces(save_data)
         data = {
             'nonces': nonces,
             "status": "SUCCESSFUL",
         }
         response = json.dumps(data).encode("utf-8")
         try:
-            await unpacked_stream.stream.write(response)
+            await stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error(f'Node=> Exception occurred: {type(e).__name__}: {e}')
         
-        await unpacked_stream.stream.close()
+        await stream.close()
 
     @auth_decorator
-    async def sign_handler(self, unpacked_stream: UnpackedStream) -> None:
+    async def sign_handler(self, stream: INetStream) -> None:
         # Read and decode the message from the network stream
-        message = await unpacked_stream.read()
+        message = await stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
 
         # Extract request_id, method, and parameters from the message
         request_id = data["request_id"]
-        sender_id = unpacked_stream.sender_id
+        sender_id = stream.muxed_conn.peer_id
         method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
@@ -243,7 +257,11 @@ class Node(Libp2pBase):
         try:
             result['data'] = self.data_validator(input_data)
             self.update_distributed_key(dkg_id)
-            result['signature_data'] =  self.distributed_keys[dkg_id].frost_sign(commitments_list, result['hash'])
+            result['signature_data'] =  self.frost_nodes[dkg_id].frost_sign(commitments_list, result['hash'])
+            nonces = self.data_manager.get_nonces()
+            result['signature_data'], remove_data = self.frost_nodes[dkg_id].sign(commitments_list, result['hash'], nonces)
+            nonces.remove(remove_data)
+            self.data_manager.set_nonces(nonces)
             result['status'] = 'SUCCESSFUL'
         except Exception as e:
             logging.error(f'Node=> Exception occurred: {type(e).__name__}: {e}')
@@ -252,9 +270,9 @@ class Node(Libp2pBase):
             }  
         response = json.dumps(result).encode("utf-8")
         try:
-            await unpacked_stream.stream.write(response)
+            await stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error(f'Node=> Exception occurred: {type(e).__name__}: {e}')
         
-        await unpacked_stream.stream.close()
+        await stream.close()

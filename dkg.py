@@ -18,11 +18,6 @@ import json
 import timeit
 
 class Dkg(Libp2pBase):
-    """
-    SignatureAggregator class inherits from Libp2pBase, provides functionality for DKG (Distributed Key Generation)
-    protocol over a libp2p network.
-    """
-
     def __init__(self, address: Dict[str, str], secret: str, node_info: NodeInfo,
                   max_workers: int = 0, default_timeout: int = 200, host:  IHost = None) -> None:
 

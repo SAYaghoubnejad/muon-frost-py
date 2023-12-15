@@ -3,24 +3,47 @@ from muon_frost_py.abstract.node_info import NodeInfo
 from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
 from muon_frost_py.common.pyfrost.tss import TSS
 from muon_frost_py.common.utils import Utils
-
 from muon_frost_py.common.utils import RequestObject
-from .utils import Wrappers
-from typing import List, Dict
 
 from libp2p.host.host_interface import IHost
+from libp2p.peer.id import ID as PeerID
+from libp2p.typing import TProtocol
+from typing import List, Dict
 
+import types
 import pprint
 import trio
 import logging
 import json
 
 
+class Wrappers:
+    @staticmethod
+    async def sign(send: types.FunctionType, dkg_key, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
+                   message: Dict, result: Dict = None, timeout: float = 5.0, semaphore: trio.Semaphore = None):
+        
+        await send(destination_address, destination_peer_id, protocol_id,
+                                      message, result,timeout, semaphore)
+        
+        if result[destination_peer_id]['status'] != 'SUCCESSFUL':
+            return
+        
+        sign = result[destination_peer_id]['signature_data']
+        msg = result[destination_peer_id]['data']
+        encoded_message = json.dumps(msg)
+        commitments_dict = message['parameters']['commitments_list']
+        aggregated_public_nonce = TSS.code_to_pub(sign['aggregated_public_nonce'])
+        
+        res = TSS.frost_verify_single_signature(sign['id'], encoded_message, 
+                                                commitments_dict,
+                                                aggregated_public_nonce, 
+                                                dkg_key['public_shares'][sign['id']], 
+                                                sign, dkg_key['public_key'])
+        if not res:
+            result[destination_peer_id]['status'] = 'MALICIOUS'
+
+
 class SA(Libp2pBase):
-    """
-    SignatureAggregator class inherits from Libp2pBase, provides functionality for DKG (Distributed Key Generation)
-    protocol over a libp2p network.
-    """
 
     def __init__(self, address: Dict[str, str], secret: str, node_info: NodeInfo,
                   max_workers: int = 0, default_timeout: int = 200, host: IHost = None) -> None:
