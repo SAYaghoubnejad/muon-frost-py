@@ -1,3 +1,3 @@
-[submodule "frost-mpc/common/pyfrost"]
-	path = frost-mpc/common/pyfrost
+[submodule "frost_mpc/common/pyfrost"]
+	path = frost_mpc/common/pyfrost
 	url = https://github.com/SAYaghoubnejad/pyfrost.git
