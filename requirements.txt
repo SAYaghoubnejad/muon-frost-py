@@ -1,5 +1,0 @@
-trio==0.16
--e git+https://github.com/libp2p/py-libp2p.git@b38b36862f44421aec998e438b668cff265de75c#egg=libp2p
-web3
-ecpy
-numpy

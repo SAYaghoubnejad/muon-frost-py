@@ -1,9 +1,10 @@
-from muon_frost_py.common.libp2p_base import Libp2pBase
-from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
-from muon_frost_py.abstract.node_info import NodeInfo
-from muon_frost_py.abstract.data_manager import DataManager
+from .common.libp2p_base import Libp2pBase
+from .common.pyfrost.frost import FROST
+from .common.libp2p_protocols import PROTOCOLS_ID
+from .abstract.node_info import NodeInfo
+from .abstract.data_manager import DataManager
+
 from libp2p.network.stream.net_stream_interface import INetStream
-from common.pyfrost.frost import FROST
 from libp2p.peer.id import ID as PeerID
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 
@@ -58,11 +59,11 @@ class Node(Libp2pBase):
         assert self.peer_id in party, f'This node is not amoung specified party for app {dkg_id}'
         assert threshold <= len(party), f'Threshold must be <= n for app {dkg_id}'
         
-        partners = party
+        partners = party.copy()
         partners.remove(self.peer_id)
         self.dkg_data[dkg_id] = {'app_name': app_name}
 
-        peer_id_as_int = int.from_bytes(PeerID.from_base58(id).to_bytes(), 'big')
+        peer_id_as_int = int.from_bytes(PeerID.from_base58(self.peer_id).to_bytes(), 'big')
         self.frost_nodes[dkg_id] = FROST(dkg_id, threshold, len(party), str(peer_id_as_int), partners)
     
     def remove_key(self, dkg_id: str) -> None:
@@ -109,12 +110,12 @@ class Node(Libp2pBase):
         }
         response = json.dumps(data).encode("utf-8")
         try:
-            await stream.stream.write(response)
+            await stream.write(response)
             logging.debug(f'{sender_id}{PROTOCOLS_ID["round1"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error(f'Node => Exception occurred: {type(e).__name__}: {e}')
         
-        await stream.stream.close()
+        await stream.close()
 
     @auth_decorator
     async def round2_handler(self, stream: INetStream) -> None:
@@ -145,8 +146,9 @@ class Node(Libp2pBase):
             logging.debug(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
 
         self.update_distributed_key(dkg_id)
-        round2_broadcast_data, save_data = self.frost_nodes[dkg_id].dkg_round2(broadcasted_data, self.dkg_data[dkg_id])
-        self.dkg_data[dkg_id].update(save_data)
+        round2_broadcast_data, save_data = self.frost_nodes[dkg_id].dkg_round2(broadcasted_data, 
+                                                                               self.dkg_data[dkg_id]['data'])
+        self.dkg_data[dkg_id]['data'].update(save_data['data'])
         self.dkg_data[dkg_id]['round1_broadcasted_data'] = broadcasted_data
         data = {
             "broadcast": round2_broadcast_data,
@@ -180,7 +182,7 @@ class Node(Libp2pBase):
         
         self.update_distributed_key(dkg_id)
         round3_data = self.frost_nodes[dkg_id].dkg_round3(self.dkg_data[dkg_id]['round1_broadcasted_data'],
-                                                          send_data, self.dkg_data[dkg_id])
+                                                          send_data, self.dkg_data[dkg_id]['data'])
         
         if round3_data['status'] == 'COMPLAINT':
             self.remove_key(dkg_id)
@@ -219,7 +221,7 @@ class Node(Libp2pBase):
         number_of_nonces = parameters['number_of_nonces']
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Got message: {message}')
-        peer_id_as_int = int.from_bytes(PeerID.from_base58(sender_id).to_bytes(), 'big')
+        peer_id_as_int = int.from_bytes(sender_id.to_bytes(), 'big')
         nonces, save_data = FROST.nonce_preprocess(peer_id_as_int, number_of_nonces)
         self.data_manager.set_nonces(save_data)
         data = {
@@ -232,7 +234,6 @@ class Node(Libp2pBase):
             logging.debug(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Sent message: {response.decode()}')
         except Exception as e:
             logging.error(f'Node=> Exception occurred: {type(e).__name__}: {e}')
-        
         await stream.close()
 
     @auth_decorator
@@ -257,7 +258,6 @@ class Node(Libp2pBase):
         try:
             result['data'] = self.data_validator(input_data)
             self.update_distributed_key(dkg_id)
-            result['signature_data'] =  self.frost_nodes[dkg_id].frost_sign(commitments_list, result['hash'])
             nonces = self.data_manager.get_nonces()
             result['signature_data'], remove_data = self.frost_nodes[dkg_id].sign(commitments_list, result['hash'], nonces)
             nonces.remove(remove_data)

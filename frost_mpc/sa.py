@@ -1,9 +1,9 @@
-from muon_frost_py.common.libp2p_base import Libp2pBase
-from muon_frost_py.abstract.node_info import NodeInfo
-from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
-from muon_frost_py.common.pyfrost.tss import TSS
-from muon_frost_py.common.utils import Utils
-from muon_frost_py.common.utils import RequestObject
+from .common.libp2p_base import Libp2pBase
+from .common.libp2p_protocols import PROTOCOLS_ID
+from .common.pyfrost.tss import TSS
+from .common.utils import Utils
+from .common.utils import RequestObject
+from .abstract.node_info import NodeInfo
 
 from libp2p.host.host_interface import IHost
 from libp2p.peer.id import ID as PeerID

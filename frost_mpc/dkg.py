@@ -1,21 +1,19 @@
-from muon_frost_py.common.libp2p_base import Libp2pBase
-from muon_frost_py.abstract.node_info import NodeInfo
-from muon_frost_py.common.libp2p_config import PROTOCOLS_ID
-from muon_frost_py.common.pyfrost.tss import TSS
-from muon_frost_py.common.utils import Utils
-
-from muon_frost_py.common.utils import RequestObject
-from typing import List, Dict
 from libp2p.crypto.secp256k1 import Secp256k1PublicKey
 from libp2p.peer.id import ID as PeerID
 from libp2p.host.host_interface import IHost
+from typing import List, Dict
 
-import types
+from .abstract.node_info import NodeInfo
+from .common.libp2p_base import Libp2pBase
+from .common.libp2p_protocols import PROTOCOLS_ID
+from .common.utils import Utils
+from .common.utils import RequestObject
+
 import pprint
 import trio
 import logging
 import json
-import timeit
+
 
 class Dkg(Libp2pBase):
     def __init__(self, address: Dict[str, str], secret: str, node_info: NodeInfo,
