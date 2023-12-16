@@ -29,7 +29,7 @@ class Libp2pBase:
     sending messages, and managing connections.
     """
 
-    def __init__(self, address: Dict[str, str], secret: str) -> None:
+    def __init__(self, address: Dict[str, str], secret: str, host: IHost = None) -> None:
         """
         Initializes the Libp2pBase instance.
 
@@ -41,24 +41,26 @@ class Libp2pBase:
         # Create RSA key pair from the secret
         self._key_pair = create_new_key_pair(bytes.fromhex(secret))
         self.peer_id: PeerID = PeerID.from_pubkey(self._key_pair.public_key)
+        if host is not None:
+            self.host = host
+        else:
+            # Initialize peer store and add key pair
+            peer_store = PeerStore()
+            peer_store.add_key_pair(self.peer_id, self._key_pair)
 
-        # Initialize peer store and add key pair
-        peer_store = PeerStore()
-        peer_store.add_key_pair(self.peer_id, self._key_pair)
-
-        # Configure transport and security protocols
-        muxer_transports_by_protocol = {MPLEX_PROTOCOL_ID: Mplex}
-        noise_key = ed25519.create_new_key_pair()
-        security_transports_by_protocol = {
-            TProtocol(secio.ID): secio.Transport(self._key_pair),
-            TProtocol(noise.PROTOCOL_ID): noise.Transport(self._key_pair, noise_key.private_key)
-        }
-        upgrader = TransportUpgrader(security_transports_by_protocol, muxer_transports_by_protocol)
-        transport = TCP()
-        swarm = Swarm(self.peer_id, peer_store, upgrader, transport)
-
-        # Initialize the host
-        self.host: IHost = BasicHost(swarm)
+            # Configure transport and security protocols
+            muxer_transports_by_protocol = {MPLEX_PROTOCOL_ID: Mplex}
+            noise_key = ed25519.create_new_key_pair()
+            security_transports_by_protocol = {
+                TProtocol(secio.ID): secio.Transport(self._key_pair),
+                TProtocol(noise.PROTOCOL_ID): noise.Transport(self._key_pair, noise_key.private_key)
+            }
+            upgrader = TransportUpgrader(security_transports_by_protocol, muxer_transports_by_protocol)
+            transport = TCP()
+            swarm = Swarm(self.peer_id, peer_store, upgrader, transport)
+            # Initialize the host
+            self.host: IHost = BasicHost(swarm)
+        
         self.ip: str = address['ip']
         self.port: str = address['port']
 

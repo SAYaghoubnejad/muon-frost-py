@@ -1,3 +1,10 @@
+from frost_mpc.common.libp2p_protocols import PROTOCOLS_ID
+VALIDATED_CALLERS = {
+    '16Uiu2HAmGVUb3nZ3yaKNpt5kH7KZccKrPaHmG1qTB48QvLdr7igH': [PROTOCOLS_ID['round1'], PROTOCOLS_ID['round2']
+                                                              , PROTOCOLS_ID['round3'], PROTOCOLS_ID['generate_nonces']
+                                                              , PROTOCOLS_ID['sign']] 
+}
+
 SECRETS = {'16Uiu2HAkv3kvbv1LjsxQ62kXE8mmY16R97svaMFhZkrkXaXSBSTq': '7f31124800890e662580f2b3fcac0b6200f1a7d9dc343bef6cbea8e9e02a5a5b',
  '16Uiu2HAkvumPB54FCBoNR8nh4aVBNhdv8sNAtt6GegL6aW2V5nCe': '7e07c2a9242a4ac6ca0f3deb65f3154483c739862bc1ca8bff1f914c4b87da0c',
  '16Uiu2HAkw89MG4Myh5hitNPVTqPekkCwMzib4Jq6BD9rtQLvJSPy': 'd6862a78d7f89d9276c7722fd860b9e4d1a0e6b04f3cc38934e7fce4dcf404b3',
@@ -98,3 +105,5 @@ SECRETS = {'16Uiu2HAkv3kvbv1LjsxQ62kXE8mmY16R97svaMFhZkrkXaXSBSTq': '7f311248008
  '16Uiu2HAmVjoo3kk8exCALSSmBkgXGb6sfZ7rKpXVUgzstFNoPDLF': '755a76071fc590b893640e7d77ce0a4816258f307d5157a23abf64cdc0347349',
  '16Uiu2HAmVmERPFurWrpjqdFzmJc3CN2zz2stDjkqQ56EV1bZFGh5': '9a4af2e7acf17259e1ca50c3e6ecffc110ef63fe64f41d6802b9007e0c4c5d50',
  '16Uiu2HAmVrnDKphoVtGM7TK4YSt7MsJCsddocMD1gdWdUL4DwNwf': '0714d00d4a6e07eac3eae39addca4757a163a051e0c81e8f2b35b2a16297ab7c'}
+
+

@@ -14,8 +14,8 @@ FROST is a cryptographic algorithm designed for threshold signature schemes. It 
 To create a virtual environment (`venv`) and install the required packages, run the following commands:
 
 ```bash
-$ git clone https://github.com/SAYaghoubnejad/muon-frost-py.git --recurse-submodules
-$ cd muon-frost-py
+$ git clone https://github.com/SAYaghoubnejad/pyfrost-mpc.git --recurse-submodules
+$ cd pyfrost-mpc
 $ virtualenv -p python3.10 venv
 $ source venv/bin/activate
 (venv) $ pip install -r requirements.txt
@@ -25,7 +25,7 @@ $ source venv/bin/activate
 
 ## How to Run
 
-To run the project, first, open `m` additional terminals for `m` nodes and activate the `venv` in these terminals. Note that `m` is an arbitrary positive number, but it must be less than or equal to 99 due to the predefined nodes for testing. Then change the directory to the `muon-frost-py` project root and run the following command in each terminal to configure the root path of the Python project:
+To run the project, first, open `m` additional terminals for `m` nodes and activate the `venv` in these terminals. Note that `m` is an arbitrary positive number, but it must be less than or equal to 99 due to the predefined nodes for testing. Then change the directory to the `pyfrost-mpc` project root and run the following command in each terminal to configure the root path of the Python project:
 
 ```bash
 (venv) $ export PYTHONPATH="./:$PYTHONPATH"
@@ -34,7 +34,7 @@ To run the project, first, open `m` additional terminals for `m` nodes and activ
 First, run the nodes. Type the following command in `m` terminals to initiate them:
 
 ```bash
-(venv) $ python node/main.py [0-m]
+(venv) $ python tests/node.py [0-m]
 ```
 
 **Note:** To run multiple nodes and stop them using a single command, you can run the `run_nodes.sh` and `stop_nodes.sh` scripts. First, add execute permission to them by running the following commands:
@@ -55,7 +55,7 @@ After executing either of the above commands, wait until the node setup is compl
 Finally, run the signature aggregator in the last terminal:
 
 ```bash
-(venv) $ python signature_aggregator/main.py [number of nodes you ran] [threshold] [n] [number of signatures]
+(venv) $ python tests/sa.py [number of nodes you ran] [threshold] [n] [number of signatures]
 ```
 
 The signature aggregator takes 4 parameters as input:

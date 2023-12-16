@@ -14,12 +14,9 @@ __pycache__
 *.vsix
 
 temp_file*
-
-
 venv
 .vscode/settings.json
-
-
 logs
-
 .env
+build
+*.egg-info

@@ -1,29 +1,11 @@
+from frost_mpc.abstract.node_info import NodeInfo as BaseNodeInfo
 from typing import List
 import json
 
 
-class DNS:
-    """
-    A DNS-like class for managing and resolving peer network information.
-    It maintains a lookup table mapping peer IDs to their respective network details.
-
-    Note: If one wishes to use other data structures or another form of data, one 
-    can inherit from this class and use the modified class. 
-    """
-
+class NodeInfo(BaseNodeInfo):
     def __init__(self):
-        """
-        Initializes the DNS with a pre-defined lookup table containing peer IDs and their details.
-        """
-        self.gateways = {
-             # Gateway
-            "16Uiu2HAmGVUb3nZ3yaKNpt5kH7KZccKrPaHmG1qTB48QvLdr7igH": {
-                "ip": "127.0.0.1",
-                "port": "7000",
-                'public_key': '080212210338fede176f44704dc4fdcdace7c35108a126d8b77ad33ee7af09c0e18d56376a'
-            }
-        }
-        self.lookup_table = {
+        self.nodes = {
             '16Uiu2HAkv3kvbv1LjsxQ62kXE8mmY16R97svaMFhZkrkXaXSBSTq': {
                 'ip': '127.0.0.1',
                 'port': '5079',
@@ -425,22 +407,11 @@ class DNS:
                 'port': '5049',
                 'public_key': '0802122103ff9bec7a9cc8b27a069784daa0e15a5f93a957567e3a562f85653f58bf7712a6'}}
         
-    def lookup_gateway(self, peer_id:str):
-        return self.gateways.get(peer_id, None)
-
-    def lookup(self, peer_id: str):
-        """
-        Resolves the network details for a given peer ID.
-
-        Parameters:
-        peer_id (str): The peer ID whose details are to be resolved.
-
-        Returns:
-        A dictionary containing the network details (IP, port, public key) of the specified peer ID.
-        """
-        return self.lookup_table.get(peer_id, None)
+    def lookup_node(self, peer_id: str):
+        return self.nodes.get(peer_id, None)
 
     def get_all_nodes(self, n:int = None) -> List[str]:
         if n is not None:
-            return list(self.lookup_table.keys())[:n]
-        return list(self.lookup_table.keys())
+            return list(self.nodes.keys())[:n]
+        return list(self.nodes.keys())
+    
