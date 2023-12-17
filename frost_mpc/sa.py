@@ -14,37 +14,13 @@ import types
 import pprint
 import trio
 import logging
-import json
 
-
-class Wrappers:
-    @staticmethod
-    async def sign(send: types.FunctionType, dkg_key, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
-                   message: Dict, result: Dict = None, timeout: float = 5.0, semaphore: trio.Semaphore = None):
-        
-        await send(destination_address, destination_peer_id, protocol_id,
-                                      message, result,timeout, semaphore)
-        
-        if result[destination_peer_id]['status'] != 'SUCCESSFUL':
-            return
-        
-        sign = result[destination_peer_id]['signature_data']
-        msg = result[destination_peer_id]['hash']
-        commitments_dict = message['parameters']['commitments_list']
-        aggregated_public_nonce = Tss.code_to_pub(sign['aggregated_public_nonce'])
-        res = Tss.frost_verify_single_signature(sign['id'], msg, 
-                                                commitments_dict,
-                                                aggregated_public_nonce, 
-                                                dkg_key['public_shares'][sign['id']], 
-                                                sign, dkg_key['public_key'])
-        if not res:
-            result[destination_peer_id]['status'] = 'MALICIOUS'
 
 
 class SA(Libp2pBase):
 
     def __init__(self, address: Dict[str, str], secret: str, node_info: NodeInfo,
-                  max_workers: int = 0, default_timeout: int = 200, host: IHost = None) -> None:
+                  max_workers: int = 0, default_timeout: int = 50, host: IHost = None) -> None:
        
         super().__init__(address, secret, host)
         self.node_info: NodeInfo = node_info
@@ -137,3 +113,27 @@ class SA(Libp2pBase):
         else:
             aggregated_sign['result'] = 'FAILED'
         return aggregated_sign
+
+
+class Wrappers:
+    @staticmethod
+    async def sign(send: types.FunctionType, dkg_key, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
+                   message: Dict, result: Dict = None, timeout: float = 5.0, semaphore: trio.Semaphore = None):
+        
+        await send(destination_address, destination_peer_id, protocol_id,
+                                      message, result,timeout, semaphore)
+        
+        if result[destination_peer_id]['status'] != 'SUCCESSFUL':
+            return
+        
+        sign = result[destination_peer_id]['signature_data']
+        msg = result[destination_peer_id]['hash']
+        commitments_dict = message['parameters']['commitments_list']
+        aggregated_public_nonce = Tss.code_to_pub(sign['aggregated_public_nonce'])
+        res = Tss.frost_verify_single_signature(sign['id'], msg, 
+                                                commitments_dict,
+                                                aggregated_public_nonce, 
+                                                dkg_key['public_shares'][sign['id']], 
+                                                sign, dkg_key['public_key'])
+        if not res:
+            result[destination_peer_id]['status'] = 'MALICIOUS'

@@ -1,13 +1,7 @@
-# Muon FROST
+# PyFrost-MPC
 
-This is the Python implementation of the FROST (Flexible Round-Optimized Schnorr Threshold) algorithm for the Muon network.
+This is the MPC (multi-party computation) version of the PyFrost library [(this repositrory)](https://github.com/SAYaghoubnejad/pyfrost) using py-libp2p as the base of party communication.
 
-FROST is a cryptographic algorithm designed for threshold signature schemes. It provides enhanced security and efficiency for decentralized systems by allowing a subset of a group to sign messages on behalf of the entire group. FROST's round-optimized design reduces the number of communication rounds required for generating a signature, making it more efficient than traditional threshold signature schemes.
-
-## Benefits of FROST
-
-- **Efficiency:** Reduces the number of rounds in the signing process, enhancing speed and efficiency in distributed environments.
-- **Scalability:** Adaptable to various group sizes, making it ideal for large, decentralized networks.
 
 ## How to Setup
 

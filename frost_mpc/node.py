@@ -73,21 +73,14 @@ class Node(Libp2pBase):
         if self.frost_nodes.get(dkg_id) is not None:
             del self.frost_nodes[dkg_id]
         
-
-
-        
-    
     @auth_decorator
     async def round1_handler(self, stream: INetStream) -> None:
-        # Read and decode the message from the network stream
+        
         message = await stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
         
-        # Extract request_id, method, and parameters from the message
-        request_id = data["request_id"]
         sender_id = stream.muxed_conn.peer_id
-        method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
         app_name = parameters['app_name']
@@ -105,7 +98,6 @@ class Node(Libp2pBase):
         round1_broadcast_data, save_data = self.frost_nodes[dkg_id].dkg_round1()
         self.dkg_data[dkg_id] = save_data
         broadcast_bytes = json.dumps(round1_broadcast_data).encode('utf-8')
-        # Prepare the response data
         data = {
             "broadcast": round1_broadcast_data,
             'validation': self._key_pair.private_key.sign(broadcast_bytes).hex(),
@@ -122,15 +114,13 @@ class Node(Libp2pBase):
 
     @auth_decorator
     async def round2_handler(self, stream: INetStream) -> None:
-        # Read and decode the message from the network stream
+        
         message = await stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
 
-        # Extract request_id, method, and parameters from the message
-        request_id = data["request_id"]
+        
         sender_id = stream.muxed_conn.peer_id
-        method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
         whole_broadcasted_data = parameters['broadcasted_data']
@@ -140,7 +130,6 @@ class Node(Libp2pBase):
         broadcasted_data = []
         for peer_id, data in whole_broadcasted_data.items():
             # TODO: error handling (if verification failed)
-            # check validation of each node
             data_bytes = json.dumps(data['broadcast']).encode('utf-8')
             validation = bytes.fromhex(data['validation'])
             public_key_bytes = bytes.fromhex(self.node_info.lookup_node(peer_id)['public_key'])
@@ -168,15 +157,12 @@ class Node(Libp2pBase):
 
     @auth_decorator
     async def round3_handler(self, stream: INetStream) -> None:
-        # Read and decode the message from the network stream
+
         message = await stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
 
-        # Extract request_id, method, and parameters from the message
-        request_id = data["request_id"]
         sender_id = stream.muxed_conn.peer_id
-        method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
         send_data = parameters['send_data']
@@ -211,15 +197,11 @@ class Node(Libp2pBase):
 
     @auth_decorator
     async def generate_nonces_handler(self, stream: INetStream) -> None:
-        # Read and decode the message from the network stream
         message = await stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
 
-        # Extract request_id, method, and parameters from the message
-        request_id = data["request_id"]
         sender_id = stream.muxed_conn.peer_id
-        method = data["method"]
         parameters = data["parameters"]
         number_of_nonces = parameters['number_of_nonces']
 
@@ -241,15 +223,10 @@ class Node(Libp2pBase):
 
     @auth_decorator
     async def sign_handler(self, stream: INetStream) -> None:
-        # Read and decode the message from the network stream
         message = await stream.read()
         message = message.decode("utf-8")
         data = json.loads(message)
-
-        # Extract request_id, method, and parameters from the message
-        request_id = data["request_id"]
         sender_id = stream.muxed_conn.peer_id
-        method = data["method"]
         parameters = data["parameters"]
         dkg_id = parameters['dkg_id']
         commitments_list = parameters['commitments_list']
@@ -279,3 +256,5 @@ class Node(Libp2pBase):
             logging.error(f'Node=> Exception occurred: {type(e).__name__}: {e}')
         
         await stream.close()
+
+

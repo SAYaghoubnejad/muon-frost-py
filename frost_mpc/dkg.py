@@ -29,13 +29,6 @@ class Dkg(Libp2pBase):
         self.default_timeout = default_timeout
 
     def __gather_round2_data(self, peer_id: str, data: Dict) -> List:
-        """
-        Collects round 2 data for a specific peer_id.
-
-        :param peer_id: The ID of the peer.
-        :param data: The data dictionary from round 1.
-        :return: A list of data entries for the specified peer.
-        """
         round2_data = []
         for _, round_data in data.items():
             for entry in round_data['broadcast']:
@@ -57,8 +50,6 @@ class Dkg(Libp2pBase):
             return response
         
         
-        
-        # Execute Round 1 of the protocol
         call_method = "round1"
 
         parameters = {
@@ -89,7 +80,6 @@ class Dkg(Libp2pBase):
             return response
         
         # TODO: error handling (if verification failed)
-        # check validation of each node
         for peer_id, data in round1_response.items():
             data_bytes = json.dumps(data['broadcast']).encode('utf-8')
             validation = bytes.fromhex(data['validation'])
@@ -98,7 +88,6 @@ class Dkg(Libp2pBase):
             public_key = Secp256k1PublicKey.deserialize(public_key_bytes)
             logging.debug(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
 
-        # Execute Round 2 of the protocol
         call_method = "round2"
         parameters = {
             "dkg_id": dkg_id,
@@ -127,8 +116,6 @@ class Dkg(Libp2pBase):
             logging.info(f'DKG request result: {response}')
             return response
 
-
-        # Execute Round 3 of the protocol
         call_method = "round3"
         
         round3_response = {}

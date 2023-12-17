@@ -23,32 +23,18 @@ import multiaddr
 import json
 
 class Libp2pBase:
-    """
-    A base class for creating and managing a libp2p host.
-    This class encapsulates functionalities like setting up a node, handling protocols,
-    sending messages, and managing connections.
-    """
 
     def __init__(self, address: Dict[str, str], secret: str, host: IHost = None) -> None:
-        """
-        Initializes the Libp2pBase instance.
 
-        Parameters:
-        address (Dict[str, str]): A dictionary containing the IP and port for the host.
-        secret (str): A secret key for creating the RSA key pair.
-        """
         # TODO: check this procedure to create host
-        # Create RSA key pair from the secret
         self._key_pair = create_new_key_pair(bytes.fromhex(secret))
         self.peer_id: PeerID = PeerID.from_pubkey(self._key_pair.public_key)
         if host is not None:
             self.host = host
         else:
-            # Initialize peer store and add key pair
             peer_store = PeerStore()
             peer_store.add_key_pair(self.peer_id, self._key_pair)
 
-            # Configure transport and security protocols
             muxer_transports_by_protocol = {MPLEX_PROTOCOL_ID: Mplex}
             noise_key = ed25519.create_new_key_pair()
             security_transports_by_protocol = {
@@ -58,32 +44,23 @@ class Libp2pBase:
             upgrader = TransportUpgrader(security_transports_by_protocol, muxer_transports_by_protocol)
             transport = TCP()
             swarm = Swarm(self.peer_id, peer_store, upgrader, transport)
-            # Initialize the host
+            
             self.host: IHost = BasicHost(swarm)
         
         self.ip: str = address['ip']
         self.port: str = address['port']
 
-        # Initialize protocol related attributes
         self.protocol_list: Dict[str, TProtocol] = {}
         self.protocol_handler: Dict[str, types.FunctionType] = {}
         self.__is_running = False
 
     def set_protocol_and_handler(self, protocol_list: Dict[str, TProtocol], protocol_handler: Dict[str, types.FunctionType]) -> None:
-        """
-        Sets the protocols and their respective handlers.
-
-        Parameters:
-        protocol_list (Dict[str, TProtocol]): A dictionary mapping protocol names to their TProtocol objects.
-        protocol_handler (Dict[str, types.FunctionType]): A dictionary mapping protocol names to their handler functions.
-        """
+    
         self.protocol_list = protocol_list
         self.protocol_handler = protocol_handler
 
     async def run(self) -> None:
-        """
-        Starts the libp2p host and listens for incoming connections.
-        """
+        
         self.__is_running = True
         listen_addr = multiaddr.Multiaddr(f"/ip4/{self.ip}/tcp/{self.port}")
         async with self.host.run(listen_addrs=[listen_addr]):
@@ -95,9 +72,7 @@ class Libp2pBase:
                 await trio.sleep(1)
 
     def stop(self) -> None:
-        """
-        Stops the libp2p host.
-        """
+        
         self.__is_running = False
 
     async def send(self, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
@@ -112,17 +87,7 @@ class Libp2pBase:
 
     async def __send(self, destination_address: Dict[str, str], destination_peer_id: PeerID, protocol_id: TProtocol,
                    message: Dict, result: Dict = None, timeout: float = 5.0) -> None:
-        """
-        Sends a message to a destination peer using a specified protocol.
-
-        Parameters:
-        destination_address (Dict[str, str]): The address of the destination peer.
-        destination_peer_id (PeerID): The peer ID of the destination.
-        protocol_id (TProtocol): The protocol to use for the communication.
-        message (Dict): The message to send.
-        result (Dict, optional): A dictionary to store response from the destination. Defaults to None.
-        timeout (float, optional): The timeout for the connection attempt in seconds. Defaults to 5.0.
-        """
+        
         now = timeit.default_timer()
         destination = f"/ip4/{destination_address['ip']}/tcp/{destination_address['port']}/p2p/{destination_peer_id}"
         logging.info(f'{destination_peer_id}{protocol_id} destination: {destination}')
@@ -130,15 +95,13 @@ class Libp2pBase:
         info = info_from_p2p_addr(maddr)
         with trio.move_on_after(timeout) as cancel_scope:
             try:
-                # Establish connection with the destination peer
                 await self.host.connect(info)
                 logging.debug(f"{destination_peer_id}{protocol_id} Connected to peer.")
 
-                # Open a new stream for communication
                 stream = await self.host.new_stream(info.peer_id, [protocol_id])
-                
+
                 logging.debug(f"{destination_peer_id}{protocol_id} Opened a new stream to peer")
-                # Send the message
+
                 encoded_message = json.dumps(message).encode("utf-8")
                 await stream.write(encoded_message)
                 logging.debug(f"{destination_peer_id}{protocol_id} Sent message: {encoded_message}")
