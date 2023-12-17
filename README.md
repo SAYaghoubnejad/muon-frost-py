@@ -18,23 +18,23 @@ $ git clone https://github.com/SAYaghoubnejad/pyfrost-mpc.git --recurse-submodul
 $ cd pyfrost-mpc
 $ virtualenv -p python3.10 venv
 $ source venv/bin/activate
-(venv) $ pip install -r requirements.txt
+(venv) $ pip install .
 ```
 
 **Note:** The required Python version is `3.10`.
 
 ## How to Run
 
-To run the project, first, open `m` additional terminals for `m` nodes and activate the `venv` in these terminals. Note that `m` is an arbitrary positive number, but it must be less than or equal to 99 due to the predefined nodes for testing. Then change the directory to the `pyfrost-mpc` project root and run the following command in each terminal to configure the root path of the Python project:
+To run the project, first, open `m` additional terminals for `m` nodes and activate the `venv` in these terminals. Note that `m` is an arbitrary positive number, but it must be less than or equal to 99 due to the predefined nodes for testing. Then change the directory to the `tests` folder:
 
 ```bash
-(venv) $ export PYTHONPATH="./:$PYTHONPATH"
+(venv) $ cd tests
 ```
 
 First, run the nodes. Type the following command in `m` terminals to initiate them:
 
 ```bash
-(venv) $ python tests/node.py [0-m]
+(venv) $ python node/main.py [0-m]
 ```
 
 **Note:** To run multiple nodes and stop them using a single command, you can run the `run_nodes.sh` and `stop_nodes.sh` scripts. First, add execute permission to them by running the following commands:
@@ -52,17 +52,19 @@ Run multiple nodes using this command:
 
 After executing either of the above commands, wait until the node setup is complete. The setup is finished when the node API is printed along with a message indicating **Waiting for incoming connections...**
 
-Finally, run the signature aggregator in the last terminal:
+Finally, run `test.py` script in the last terminal:
 
 ```bash
-(venv) $ python tests/sa.py [number of nodes you ran] [threshold] [n] [number of signatures]
+(venv) $ python test.py [number of nodes you ran] [threshold] [n] [number of signatures]
 ```
 
-The signature aggregator takes 4 parameters as input:
+Note that `test.py` implements the functionality for distributed key generation and signature aggregation.
+
+The script takes 4 parameters as input:
 
 1. `number of nodes you ran`: The number of active nodes.
 2. `threshold`: The threshold of the FROST algorithm, which is an integer ($t \leq n$).
-3. `n`: The number of nodes cooperating with the signature aggregator to generate a distributed key ($n \leq m$).
+3. `n`: The number of nodes cooperating with the DKG to generate a distributed key ($n \leq m$).
 4. `number of signatures`: The number of signatures requested by the signature aggregator upon completion of the Distributed Key Generation (DKG).
 
 If you want to stop all the nodes, type the following command:

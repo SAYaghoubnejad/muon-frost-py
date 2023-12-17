@@ -1,5 +1,5 @@
 from .common.libp2p_base import Libp2pBase
-from .common.pyfrost.frost import FROST
+from .common.pyfrost.frost import Frost
 from .common.libp2p_protocols import PROTOCOLS_ID
 from .abstract.node_info import NodeInfo
 from .abstract.data_manager import DataManager
@@ -34,7 +34,7 @@ class Node(Libp2pBase):
                   data_validator: types.FunctionType) -> None:
         super().__init__(address, secret)
         self.node_info: NodeInfo = node_info
-        self.frost_nodes: Dict[str, FROST] = {}
+        self.frost_nodes: Dict[str, Frost] = {}
         self.caller_validator = caller_validator
         self.data_validator = data_validator
         # Define handlers for various protocol methods
@@ -58,13 +58,16 @@ class Node(Libp2pBase):
     def add_new_key(self, dkg_id: str, threshold, party: List[str], app_name: str) -> None:
         assert self.peer_id in party, f'This node is not amoung specified party for app {dkg_id}'
         assert threshold <= len(party), f'Threshold must be <= n for app {dkg_id}'
-        
-        partners = party.copy()
-        partners.remove(self.peer_id)
+        partners = []
+        for peer_id in party:
+            if peer_id == self.peer_id:
+                continue
+            partners.append(str(int.from_bytes(PeerID.from_base58(peer_id).to_bytes(), 'big')))
         self.dkg_data[dkg_id] = {'app_name': app_name}
 
-        peer_id_as_int = int.from_bytes(PeerID.from_base58(self.peer_id).to_bytes(), 'big')
-        self.frost_nodes[dkg_id] = FROST(dkg_id, threshold, len(party), str(peer_id_as_int), partners)
+        peer_id_as_int = int.from_bytes(self.peer_id.to_bytes(), 'big')
+
+        self.frost_nodes[dkg_id] = Frost(dkg_id, threshold, len(party), str(peer_id_as_int), partners)
     
     def remove_key(self, dkg_id: str) -> None:
         if self.frost_nodes.get(dkg_id) is not None:
@@ -221,8 +224,8 @@ class Node(Libp2pBase):
         number_of_nonces = parameters['number_of_nonces']
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Got message: {message}')
-        peer_id_as_int = int.from_bytes(sender_id.to_bytes(), 'big')
-        nonces, save_data = FROST.nonce_preprocess(peer_id_as_int, number_of_nonces)
+        peer_id_as_int = int.from_bytes(self.peer_id.to_bytes(), 'big')
+        nonces, save_data = Frost.nonce_preprocess(peer_id_as_int, number_of_nonces)
         self.data_manager.set_nonces(save_data)
         data = {
             'nonces': nonces,
@@ -256,7 +259,7 @@ class Node(Libp2pBase):
         logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
         result = {}
         try:
-            result['data'] = self.data_validator(input_data)
+            result = self.data_validator(input_data)
             self.update_distributed_key(dkg_id)
             nonces = self.data_manager.get_nonces()
             result['signature_data'], remove_data = self.frost_nodes[dkg_id].sign(commitments_list, result['hash'], nonces)
