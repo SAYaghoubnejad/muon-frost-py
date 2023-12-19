@@ -1,5 +1,6 @@
 from .common.libp2p_base import Libp2pBase
-from .common.pyfrost.frost import Frost
+from .common.pyfrost.distributed_key import DistributedKey
+from .common import pyfrost
 from .common.libp2p_protocols import PROTOCOLS_ID
 from .abstract.node_info import NodeInfo
 from .abstract.data_manager import DataManager
@@ -34,7 +35,7 @@ class Node(Libp2pBase):
                   data_validator: types.FunctionType) -> None:
         super().__init__(address, secret)
         self.node_info: NodeInfo = node_info
-        self.frost_nodes: Dict[str, Frost] = {}
+        self.distributed_keys: Dict[str, DistributedKey] = {}
         self.caller_validator = caller_validator
         self.data_validator = data_validator
         # Define handlers for various protocol methods
@@ -50,28 +51,29 @@ class Node(Libp2pBase):
         self.dkg_data = {}
         
     def update_distributed_key(self, dkg_id: str) -> None:
-        result = self.frost_nodes.get(dkg_id)
+        result = self.distributed_keys.get(dkg_id)
         if result is not None:
             return
-        # TODO: Implement for retrieve distributed key object
+        # TODO: Implement for retrieving distributed key object
         
     def add_new_key(self, dkg_id: str, threshold, party: List[str], app_name: str) -> None:
         assert self.peer_id in party, f'This node is not amoung specified party for app {dkg_id}'
         assert threshold <= len(party), f'Threshold must be <= n for app {dkg_id}'
         partners = []
         for peer_id in party:
-            if peer_id == self.peer_id:
+            if peer_id == self.peer_id.to_base58():
                 continue
-            partners.append(str(int.from_bytes(PeerID.from_base58(peer_id).to_bytes(), 'big')))
+            #partners.append(str(int.from_bytes(PeerID.from_base58(peer_id).to_bytes(), 'big')))
+            partners.append(str(self.node_info.lookup_node(peer_id)['id']))
         self.dkg_data[dkg_id] = {'app_name': app_name}
 
-        peer_id_as_int = int.from_bytes(self.peer_id.to_bytes(), 'big')
+        #peer_id_as_int = int.from_bytes(self.peer_id.to_bytes(), 'big')
+        peer_id_as_int = self.node_info.lookup_node(self.peer_id.to_base58())['id']
 
-        self.frost_nodes[dkg_id] = Frost(dkg_id, threshold, len(party), str(peer_id_as_int), partners)
-    
+        self.distributed_keys[dkg_id] = DistributedKey(dkg_id, threshold, len(party), str(peer_id_as_int), partners)
     def remove_key(self, dkg_id: str) -> None:
-        if self.frost_nodes.get(dkg_id) is not None:
-            del self.frost_nodes[dkg_id]
+        if self.distributed_keys.get(dkg_id) is not None:
+            del self.distributed_keys[dkg_id]
         
     @auth_decorator
     async def round1_handler(self, stream: INetStream) -> None:
@@ -95,7 +97,7 @@ class Node(Libp2pBase):
             )
         
         self.update_distributed_key(dkg_id)
-        round1_broadcast_data, save_data = self.frost_nodes[dkg_id].dkg_round1()
+        round1_broadcast_data, save_data = self.distributed_keys[dkg_id].round1()
         self.dkg_data[dkg_id] = save_data
         broadcast_bytes = json.dumps(round1_broadcast_data).encode('utf-8')
         data = {
@@ -138,7 +140,7 @@ class Node(Libp2pBase):
             logging.debug(f'Verification of sent data from {peer_id}: {public_key.verify(data_bytes, validation)}')
 
         self.update_distributed_key(dkg_id)
-        round2_broadcast_data, save_data = self.frost_nodes[dkg_id].dkg_round2(broadcasted_data, 
+        round2_broadcast_data, save_data = self.distributed_keys[dkg_id].round2(broadcasted_data, 
                                                                                self.dkg_data[dkg_id]['data'])
         self.dkg_data[dkg_id]['data'].update(save_data['data'])
         self.dkg_data[dkg_id]['round1_broadcasted_data'] = broadcasted_data
@@ -170,9 +172,8 @@ class Node(Libp2pBase):
         logging.debug(f'{sender_id}{PROTOCOLS_ID["round3"]} Got message: {message}')
         
         self.update_distributed_key(dkg_id)
-        round3_data = self.frost_nodes[dkg_id].dkg_round3(self.dkg_data[dkg_id]['round1_broadcasted_data'],
+        round3_data = self.distributed_keys[dkg_id].round3(self.dkg_data[dkg_id]['round1_broadcasted_data'],
                                                           send_data, self.dkg_data[dkg_id]['data'])
-        
         if round3_data['status'] == 'COMPLAINT':
             self.remove_key(dkg_id)
         
@@ -206,8 +207,9 @@ class Node(Libp2pBase):
         number_of_nonces = parameters['number_of_nonces']
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["generate_nonces"]} Got message: {message}')
-        peer_id_as_int = int.from_bytes(self.peer_id.to_bytes(), 'big')
-        nonces, save_data = Frost.nonce_preprocess(peer_id_as_int, number_of_nonces)
+        #peer_id_as_int = int.from_bytes(self.peer_id.to_bytes(), 'big')
+        peer_id_as_int = self.node_info.lookup_node(self.peer_id.to_base58())['id']
+        nonces, save_data = pyfrost.nonce_preprocess(peer_id_as_int, number_of_nonces)
         self.data_manager.set_nonces(save_data)
         data = {
             'nonces': nonces,
@@ -231,7 +233,7 @@ class Node(Libp2pBase):
         dkg_id = parameters['dkg_id']
         commitments_list = parameters['commitments_list']
         input_data = data['input_data']
-
+        
 
         logging.debug(f'{sender_id}{PROTOCOLS_ID["sign"]} Got message: {message}')
         result = {}
@@ -239,7 +241,7 @@ class Node(Libp2pBase):
             result = self.data_validator(input_data)
             self.update_distributed_key(dkg_id)
             nonces = self.data_manager.get_nonces()
-            result['signature_data'], remove_data = self.frost_nodes[dkg_id].sign(commitments_list, result['hash'], nonces)
+            result['signature_data'], remove_data = self.distributed_keys[dkg_id].sign(commitments_list, result['hash'], nonces)
             nonces.remove(remove_data)
             self.data_manager.set_nonces(nonces)
             result['status'] = 'SUCCESSFUL'

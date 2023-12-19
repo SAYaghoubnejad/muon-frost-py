@@ -9,11 +9,13 @@ class NodeInfo(BaseNodeInfo):
             '16Uiu2HAkv3kvbv1LjsxQ62kXE8mmY16R97svaMFhZkrkXaXSBSTq': {
                 'ip': '127.0.0.1',
                 'port': '5079',
-                'public_key': '0802122102093e801cf1d55cb2423b370ec478f6d0fe8fa4dfaa62c37979d6a51d43f6ddb8'},
+                'public_key': '0802122102093e801cf1d55cb2423b370ec478f6d0fe8fa4dfaa62c37979d6a51d43f6ddb8',
+                'id': 12345},
             '16Uiu2HAkvumPB54FCBoNR8nh4aVBNhdv8sNAtt6GegL6aW2V5nCe': {
                 'ip': '127.0.0.1',
                 'port': '5065',
-                'public_key': '0802122102160e0f1485fdbff482e30b05d6b496e941682e99df831580f9885c75fa40f4b7'},
+                'public_key': '0802122102160e0f1485fdbff482e30b05d6b496e941682e99df831580f9885c75fa40f4b7',
+                'id': 12346},
             '16Uiu2HAkw89MG4Myh5hitNPVTqPekkCwMzib4Jq6BD9rtQLvJSPy': {
                 'ip': '127.0.0.1',
                 'port': '5072',

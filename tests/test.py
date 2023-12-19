@@ -14,14 +14,14 @@ import time
 import pprint
 import os
 
-async def run_random_party_dkg(dkg: Dkg, all_nodes: List[str], threshold: int, n: int, app_name: str) -> None:
+async def run_random_party_dkg(dkg: Dkg, all_nodes: List[str], threshold: int, n: int, app_name: str, node_info: NodeInfo) -> None:
     is_completed = False
     dkg_key = None
     while not is_completed:
         seed = int(time.time())
         party = Utils.get_new_random_subset(all_nodes, seed, n)
         now = timeit.default_timer()
-        dkg_key = await dkg.request_dkg(threshold, party, app_name)
+        dkg_key = await dkg.request_dkg(threshold, party, app_name, node_info)
         then = timeit.default_timer()
         if dkg_key['dkg_id'] == None:
             exit()
@@ -56,7 +56,7 @@ async def maintain_nonces(sa: SA, peer_ids: List[str], nonces: Dict[str, List], 
     average_time = sum(average_time) / len(average_time)
     logging.info(f'Nonce generation average time: {average_time}')
 
-async def get_commitments(party: List[str], nonces: Dict[str, List], timeout: int = 5) -> Dict:
+async def get_commitments(party: List[str], nonces: Dict[str, List], node_info: NodeInfo, timeout: int = 5) -> Dict:
         commitments_dict = {}
         peer_ids_with_timeout = {}
         for peer_id in party:
@@ -64,8 +64,8 @@ async def get_commitments(party: List[str], nonces: Dict[str, List], timeout: in
                 while not nonces.get(peer_id):
                     await trio.sleep(0.1)
                 commitment = nonces[peer_id].pop()
-                commitments_dict[str(int.from_bytes(PeerID.from_base58(peer_id).to_bytes(), 'big'))] = commitment
-        
+                #commitments_dict[str(int.from_bytes(PeerID.from_base58(peer_id).to_bytes(), 'big'))] = commitment
+                commitments_dict[str(node_info.lookup_node(peer_id)['id'])] = commitment
             if cancel_scope.cancelled_caught:
                 timeout_response = {
                     "status": "TIMEOUT",
@@ -90,7 +90,7 @@ async def run(total_node_number: int, threshold: int, n: int, num_signs: int) ->
         nursery.start_soon(dkg.run)
         await maintain_nonces(sa, all_nodes, nonces, node_info)
         start_time = timeit.default_timer()
-        dkg_key = await run_random_party_dkg(dkg, all_nodes, threshold, n, app_name)
+        dkg_key = await run_random_party_dkg(dkg, all_nodes, threshold, n, app_name, node_info)
         end_time = timeit.default_timer()
         
         dkg_id = dkg_key['dkg_id']
@@ -99,11 +99,12 @@ async def run(total_node_number: int, threshold: int, n: int, num_signs: int) ->
         
         for i in range(num_signs):
             logging.info(f'Get signature {i} for app {app_name} with DKG id {dkg_id}')
-            commitments_dict = await get_commitments(dkg_key['party'], nonces)
+            commitments_dict = await get_commitments(dkg_key['party'], nonces, node_info)
             now = timeit.default_timer()
             input_data = {
                 'data': 'Hi there!'
             }
+            
             signature = await sa.request_signature(dkg_key, commitments_dict, input_data, dkg_key['party'])
             then = timeit.default_timer()
 
@@ -130,7 +131,7 @@ if __name__ == "__main__":
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(log_formatter)
     root_logger.addHandler(console_handler)
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(logging.DEBUG)
     
     sys.set_int_max_str_digits(0)
 

@@ -36,7 +36,7 @@ class Dkg(Libp2pBase):
                     round2_data.append(entry)
         return round2_data
 
-    async def request_dkg(self, threshold: int, party: List[str], app_name: str) -> Dict:
+    async def request_dkg(self, threshold: int, party: List[str], app_name: str, node_info: NodeInfo) -> Dict:
         logging.info(f'Requesting DKG with threshold: {threshold}, party: {party}, app name: {app_name}.')
         dkg_id = Utils.generate_random_uuid()
 
@@ -158,8 +158,8 @@ class Dkg(Libp2pBase):
         public_shares = {}
         validations = {}
         for id, data in round3_response.items():
-            public_shares[int.from_bytes(PeerID.from_base58(id).to_bytes(), 'big')] = data['data']['public_share']
-            validations[int.from_bytes(PeerID.from_base58(id).to_bytes(), 'big')] = data['validation']
+            public_shares[node_info.lookup_node(id)['id']] = data['data']['public_share']
+            validations[node_info.lookup_node(id)['id']] = data['validation']
         
         response = {
             'dkg_id': dkg_id,
