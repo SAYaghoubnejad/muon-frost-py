@@ -2,6 +2,8 @@ import types
 from typing import List, Dict
 from abc import ABC, abstractmethod
 from libp2p.typing import TProtocol
+
+
 class Validators(ABC):
     @staticmethod
     @abstractmethod

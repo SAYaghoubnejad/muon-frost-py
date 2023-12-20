@@ -8,20 +8,18 @@ import random
 from typing import List, Dict
 import requests
 
+
 class Utils:
     def __init__(self) -> None:
         pass
 
-
-        
     @staticmethod
     def generate_random_uuid() -> str:
         return str(uuid.uuid4())
-    
-    
+
     @staticmethod
     def get_new_random_subset(list: List, seed: int, subset_size: int) -> None:
-        random.seed(seed)  
+        random.seed(seed)
         random_subset = random.sample(list, subset_size)
         return random_subset
 
@@ -36,21 +34,15 @@ class Utils:
             'public_key': key_pair.public_key.serialize().hex(),
             'peer_id': peer_id.to_base58()
         }
-    
-    @staticmethod
-    def check_list_equality(list) -> bool:
-        if len(set(list)) == 1:
-            return True
-        else:
-            return False
-    
+
     @staticmethod
     def get_request(url) -> Dict:
         try:
             result = requests.get(url).json()
             return result
         except Exception as e:
-            logging.error(f'get_request => Exception occurred: {type(e).__name__}: {e}')
+            logging.error(
+                f'get_request => Exception occurred: {type(e).__name__}: {e}')
             return None
 
 
@@ -64,9 +56,9 @@ class RequestObject:
 
     def get(self):
         result = {
-            "request_id": f"{self.request_id}_{self.call_method}",
-            "method": self.call_method,
-            "parameters": self.parameters
+            'request_id': f'{self.request_id}_{self.call_method}',
+            'method': self.call_method,
+            'parameters': self.parameters
         }
         if self.input_data:
             result['input_data'] = self.input_data

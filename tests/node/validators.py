@@ -6,15 +6,17 @@ from typing import Dict
 import hashlib
 import json
 
+
 class NodeValidators(Validators):
     def __init__(self) -> None:
         super().__init__()
-    
+
     @staticmethod
     def caller_validator(sender_id: str, protocol: TProtocol):
         if protocol in VALIDATED_CALLERS.get(str(sender_id), {}):
             return True
         return False
+
     @staticmethod
     def data_validator(input_data: Dict):
         result = {
@@ -24,4 +26,3 @@ class NodeValidators(Validators):
         hash_hex = hash_obj.hexdigest()
         result['hash'] = hash_hex
         return result
-        
